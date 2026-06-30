@@ -1,17 +1,150 @@
+
 .App {
-  text-align: center;
+  fontFamily: sans-serif;
+  height: 100vh;
+  display: flex;
+  flexDirection: column;
+  padding: 10px;
+  boxSizing: border-box;
+}
+toolbar {
+  display: flex;
+  gap: 10px;
+  marginBottom: 10px;
+}
+toolbarBtn {
+  padding: 8px 16px;
+  background: #007bff;
+  color: white;
+  border: none;
+  borderRadius: 4px;
+  cursor: pointer;
+}
+main {
+  display: flex;
+  flex: 1;
+  minHeight: 0;
+}
+listContainer {
+  width: 250px;
+  borderRight: 1px solid #ccc;
+  display: flex;
+  flexDirection: column;
+  paddingRight: 10px;
+}
+listHeader {
+  display: flex;
+  justifyContent: space-between;
+  alignItems: center;
+  padding: 8px 0;
+  fontWeight: bold;
+}
+listScroll {
+  flex: 1;
+  overflowY: auto;
+  padding: 5px 0;
+}
+listItem {
+  padding: 8px 10px;
+  cursor: pointer;
+  borderRadius: 4px;
+  marginBottom: 4px;
+  border: 1px solid transparent;
+  transition: background 0.2s;
+}
+addBtn {
+  background: #28a745;
+  color: white;
+  border: none;
+  borderRadius: 4px;
+  cursor: pointer;
+  fontSize: 18px;
+  width: 30px;
+  height: 30px;
+  marginRight: 5px;
+}
+deleteBtn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  borderRadius: 4px;
+  cursor: pointer;
+  fontSize: 18px;
+  width: 30px;
+  height: 30px;
+}
+editorContainer {
+  flex: 1;
+  paddingLeft: 20px;
+  overflowY: auto;
+}
+editorPlaceholder {
+  display: flex;
+  justifyContent: center;
+  alignItems: center;
+  height: 100%;
+  color: #999;
+  fontSize: 18px;
+}
+editor {
+  padding: 10px 0;
+}
+field {
+  marginBottom: 15px;
+}
+label {
+  display: block;
+  fontWeight: bold;
+  marginBottom: 4px;
+}
+input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  borderRadius: 4px;
+  boxSizing: border-box;
+}
+listEditor {
+  marginBottom: 15px;
+}
+listItems {
+  marginBottom: 6px;
+}
+listItemRow {
+  display: flex;
+  justifyContent: space-between;
+  alignItems: center;
+  padding: 4px 8px;
+  background: #f8f9fa;
+  borderRadius: 4px;
+  marginBottom: 4px;
+}
+removeItemBtn {
+  background: transparent;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  fontSize: 14px;
+}
+addItemRow {
+  display: flex;
+  gap: 6px;
+}
+addItemInput {
+  flex: 1;
+  padding: 6px;
+  border: 1px solid #ccc;
+  borderRadius: 4px;
+}
+.addItemBtn {
+  padding: 6px 12px;
+  background: #007bff;
+  color: white;
+  border: none;
+  borderRadius: 4px;
+  cursor: pointer;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
 
 .App-header {
   background-color: #282c34;
@@ -28,11 +161,4 @@
   color: #61dafb;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+
