@@ -8,7 +8,6 @@ export const StyledListContainer = styled(Box)(({ theme }) => ({
 }));
 
 export const StyledList = styled(List)(({ theme }) => ({
-    overflowY: 'auto',
     flex: 1,
     '& .MuiListItemButton-root': {
         borderRadius: theme.spacing(0.5),

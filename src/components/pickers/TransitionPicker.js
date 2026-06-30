@@ -131,7 +131,7 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
                         onClick={handleAdd}
                         startIcon={<AddIcon />}
                     >
-                        Добавить переход
+                        Добавить
                     </Button>
                 </Box>
             </Stack>

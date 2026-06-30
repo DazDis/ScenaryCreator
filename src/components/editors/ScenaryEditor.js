@@ -29,14 +29,14 @@ export const ScenaryEditor = ({
                         size="small"
                     />
                     <TextField
-                        label="Выражение"
+                        label="Выводимое сообщение"
                         value={obj.Expression || ''}
                         onChange={(e) => onUpdate('Expression', e.target.value)}
                         fullWidth
                         size="small"
                     />
                     <Divider />
-                    <Typography variant="subtitle2">Действия при старте</Typography>
+                    <Typography variant="subtitle2">Действия при старте этапа</Typography>
                     <MethodPicker
                         items={obj['Actions on Start'] || []}
                         onAddItem={(item) => onAddListItem('Actions on Start', item)}
@@ -44,7 +44,7 @@ export const ScenaryEditor = ({
                         blueprints={blueprints}
                     />
                     <Divider />
-                    <Typography variant="subtitle2">Действия при завершении</Typography>
+                    <Typography variant="subtitle2">Действия при завершении этапа</Typography>
                     <MethodPicker
                         items={obj['Actions on End'] || []}
                         onAddItem={(item) => onAddListItem('Actions on End', item)}
@@ -52,7 +52,7 @@ export const ScenaryEditor = ({
                         blueprints={blueprints}
                     />
                     <Divider />
-                    <Typography variant="subtitle2">Переходы</Typography>
+                    <Typography variant="subtitle2">Переходы между этапами</Typography>
                     <TransitionPicker
                         items={obj['Transition Tasks'] || []}
                         onAddItem={(item) => onAddListItem('Transition Tasks', item)}

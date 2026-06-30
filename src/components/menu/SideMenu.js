@@ -64,7 +64,7 @@ export const SideMenu = ({ currentPage, onPageChange }) => {
             </List>
             <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
                 <Typography variant="caption" color="text.secondary">
-                    
+
                 </Typography>
             </Box>
         </Box>

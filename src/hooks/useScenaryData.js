@@ -204,20 +204,29 @@ export const useScenaryData = () => {
     }, [selectedBlueprintIndex]);
 
     const addFieldToBlueprint = useCallback((fieldName) => {
-        if (selectedBlueprintIndex === null) return;
-        if (!fieldName.trim()) {
-            throw new Error('Имя сообщения не может быть пустым');
+        if (selectedBlueprintIndex === null) {
+            return { success: false, error: 'Не выбран сценарный объект' };
         }
+
+        const trimmedName = fieldName.trim();
+        if (!trimmedName) {
+            return { success: false, error: 'Имя сообщения не может быть пустым' };
+        }
+
+        const currentBlueprint = blueprints[selectedBlueprintIndex];
+        if (currentBlueprint.fields.includes(trimmedName)) {
+            return { success: false, error: `Сообщение "${trimmedName}" уже существует` };
+        }
+
         setBlueprints(prev => {
             const updated = [...prev];
             const bp = updated[selectedBlueprintIndex];
-            if (bp.fields.includes(fieldName.trim())) {
-                throw new Error('Такое сообщение уже существует');
-            }
-            bp.fields.push(fieldName.trim());
+            bp.fields.push(trimmedName);
             return updated;
         });
-    }, [selectedBlueprintIndex]);
+
+        return { success: true };
+    }, [selectedBlueprintIndex, blueprints]);
 
     const removeFieldFromBlueprint = useCallback((fieldIndex) => {
         if (selectedBlueprintIndex === null) return;

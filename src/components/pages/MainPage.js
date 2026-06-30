@@ -44,9 +44,9 @@ export const MainPage = ({
                 flexDirection: 'column',
                 flexShrink: 0,
                 height: '100%',
-                overflow: 'hidden'
+                overflow: 'hidden'  // ← у Paper убираем прокрутку
             }}>
-                <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ flex: 1, overflowY: 'auto' }}>
                     <ScenaryList
                         scenaryObjects={scenaryObjects}
                         selectedIndex={selectedIndex}
@@ -57,10 +57,8 @@ export const MainPage = ({
                 </Box>
             </Paper>
 
-            <Box sx={{ flex: 1, height: '100%', overflow: 'hidden' }}>
-                <Box sx={{ height: '100%', overflowY: 'auto', pr: 1 }}>
-                    {renderRightPanel()}
-                </Box>
+            <Box sx={{ flex: 1, height: '100%', overflowY: 'auto' }}>
+                {renderRightPanel()}
             </Box>
         </Box>
     );
