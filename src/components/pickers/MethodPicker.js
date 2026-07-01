@@ -67,7 +67,6 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
     return (
         <Box sx={{ mb: 2 }}>
             <Stack spacing={1}>
-                {/* Список добавленных методов с крестиками */}
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                     {items.map((item, idx) => (
                         <Chip
@@ -90,94 +89,108 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
                     ))}
                 </Box>
 
-                {/* Форма добавления */}
                 <Box sx={{
                     display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 1,
-                    alignItems: 'flex-start'
+                    flexDirection: 'column',
+                    gap: 1
                 }}>
-                    <Autocomplete
-                        size="small"
-                        options={blueprints}
-                        getOptionLabel={(option) => option.name}
-                        value={selectedBlueprint}
-                        onChange={(event, newValue) => handleBlueprintChange(newValue)}
-                        sx={{ minWidth: 180, flex: '1 1 180px' }}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Сценарный объект"
-                                placeholder="Поиск объекта..."
-                                size="small"
-                            />
-                        )}
-                        isOptionEqualToValue={(option, value) => option.name === value?.name}
-                        noOptionsText="Ничего не найдено"
-                    />
-
-                    <Autocomplete
-                        size="small"
-                        options={methods}
-                        getOptionLabel={(option) => option.name}
-                        value={selectedMethod}
-                        onChange={(event, newValue) => handleMethodChange(newValue)}
-                        disabled={!selectedBlueprint}
-                        sx={{ minWidth: 180, flex: '1 1 180px' }}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Метод"
-                                placeholder="Поиск метода..."
-                                size="small"
-                            />
-                        )}
-                        isOptionEqualToValue={(option, value) => option.name === value?.name}
-                        noOptionsText="Нет доступных методов"
-                        renderOption={(props, option) => (
-                            <li {...props}>
-                                <Tooltip
-                                    title={option.description || 'Нет описания'}
-                                    placement="right"
-                                    arrow
-                                >
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                                        <Typography variant="body2">{option.name}</Typography>
-                                        {option.description && (
-                                            <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                                {option.description.length > 50 ? option.description.substring(0, 50) + '...' : option.description}
-                                            </Typography>
-                                        )}
-                                    </Box>
-                                </Tooltip>
-                            </li>
-                        )}
-                    />
-
-                    {parameters.length > 0 && (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, flex: '1 1 120px' }}>
-                            {parameters.map((param, idx) => (
+                    {/* Первая строка - выбор объекта и метода */}
+                    <Box sx={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 1,
+                        alignItems: 'center'
+                    }}>
+                        <Autocomplete
+                            size="small"
+                            options={blueprints}
+                            getOptionLabel={(option) => option.name}
+                            value={selectedBlueprint}
+                            onChange={(event, newValue) => handleBlueprintChange(newValue)}
+                            sx={{ minWidth: 180, flex: 1 }}
+                            renderInput={(params) => (
                                 <TextField
-                                    key={idx}
+                                    {...params}
+                                    label="Сценарный объект"
+                                    placeholder="Поиск объекта..."
                                     size="small"
-                                    placeholder={param}
-                                    value={paramValues[idx] || ''}
-                                    onChange={(e) => handleParamChange(idx, e.target.value)}
-                                    sx={{ minWidth: 80, flex: '1 1 80px' }}
                                 />
-                            ))}
-                        </Box>
-                    )}
+                            )}
+                            isOptionEqualToValue={(option, value) => option.name === value?.name}
+                            noOptionsText="Ничего не найдено"
+                        />
 
-                    <Button
-                        variant="contained"
-                        size="small"
-                        onClick={handleAdd}
-                        startIcon={<AddIcon />}
-                        sx={{ flexShrink: 0 }}
-                    >
-                        Добавить
-                    </Button>
+                        <Autocomplete
+                            size="small"
+                            options={methods}
+                            getOptionLabel={(option) => option.name}
+                            value={selectedMethod}
+                            onChange={(event, newValue) => handleMethodChange(newValue)}
+                            disabled={!selectedBlueprint}
+                            sx={{ minWidth: 180, flex: 1 }}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Метод"
+                                    placeholder="Поиск метода..."
+                                    size="small"
+                                />
+                            )}
+                            isOptionEqualToValue={(option, value) => option.name === value?.name}
+                            noOptionsText="Нет доступных методов"
+                            renderOption={(props, option) => (
+                                <li {...props}>
+                                    <Tooltip
+                                        title={option.description || 'Нет описания'}
+                                        placement="right"
+                                        arrow
+                                    >
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                                            <Typography variant="body2">{option.name}</Typography>
+                                            {option.description && (
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                                    {option.description.length > 50 ? option.description.substring(0, 50) + '...' : option.description}
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    </Tooltip>
+                                </li>
+                            )}
+                        />
+                    </Box>
+
+                    {/* Вторая строка - параметры и кнопка добавления */}
+                    <Box sx={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 1,
+                        alignItems: 'center'
+                    }}>
+                        {parameters.length > 0 && (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                {parameters.map((param, idx) => (
+                                    <TextField
+                                        key={idx}
+                                        size="small"
+                                        placeholder={param}
+                                        value={paramValues[idx] || ''}
+                                        onChange={(e) => handleParamChange(idx, e.target.value)}
+                                        sx={{ width: 120 }}
+                                    />
+                                ))}
+                            </Box>
+                        )}
+
+                        <Button
+                            variant="contained"
+                            size="small"
+                            onClick={handleAdd}
+                            startIcon={<AddIcon />}
+                            sx={{ flexShrink: 0 }}
+                        >
+                            Добавить
+                        </Button>
+                    </Box>
                 </Box>
             </Stack>
         </Box>

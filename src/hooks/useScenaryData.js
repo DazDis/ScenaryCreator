@@ -175,6 +175,18 @@ export const useScenaryData = () => {
 
         return { success: true };
     }, [selectedBlueprintIndex, blueprints]);
+    const updateListItem = useCallback((listKey, itemIndex, newValue) => {
+        if (selectedIndex === null) return;
+        setScenaryObjects(prev => {
+            const updated = [...prev];
+            const currentList = updated[selectedIndex][listKey] || [];
+            if (itemIndex >= 0 && itemIndex < currentList.length) {
+                currentList[itemIndex] = newValue;
+                updated[selectedIndex][listKey] = currentList;
+            }
+            return updated;
+        });
+    }, [selectedIndex]);
 
     const removeMethodFromBlueprint = useCallback((methodIndex) => {
         if (selectedBlueprintIndex === null) return;
@@ -287,7 +299,7 @@ export const useScenaryData = () => {
         addFieldToBlueprint,
         removeFieldFromBlueprint,
         selectBlueprint,
-
+        updateListItem,
         // Общие
         clearAllData
     };

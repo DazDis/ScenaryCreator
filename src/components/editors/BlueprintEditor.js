@@ -1,8 +1,5 @@
 import React, { useState, useRef } from 'react';
-import {
-    Card, CardHeader, CardContent, Stack, TextField, Divider, Typography,
-    Box, Chip, IconButton, Button, Alert
-} from '@mui/material';
+import {Card, CardHeader, CardContent, Stack, TextField, Divider, Typography, Box, Chip, IconButton, Button, Alert} from '@mui/material';
 import { Delete as DeleteIcon } from '@mui/icons-material';
 
 export const BlueprintEditor = ({
