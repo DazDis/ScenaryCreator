@@ -41,6 +41,7 @@ function App() {
     addFieldToBlueprint,
     removeFieldFromBlueprint,
     selectBlueprint,
+    updateListItem,
     clearAllData
   } = useScenaryData();
 
@@ -129,6 +130,7 @@ function App() {
                 addListItem={addListItem}
                 removeListItem={removeListItem}
                 selectScenary={selectScenary}
+                updateListItem={updateListItem}
             />
         );
       case 'objects':
@@ -174,7 +176,7 @@ function App() {
               <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
                 Редактор сценариев
               </Typography>
-              <Button color="inherit" startIcon={<UploadIcon />} onClick={() => fileInputRef.current?.click()}>
+              <Button color="inherit" startIcon={<DownloadIcon />} onClick={() => fileInputRef.current?.click()}>
                 Импорт
               </Button>
               <input
@@ -184,7 +186,7 @@ function App() {
                   onChange={handleImport}
                   style={{ display: 'none' }}
               />
-              <Button color="inherit" startIcon={<DownloadIcon />} onClick={handleExport}>
+              <Button color="inherit" startIcon={<UploadIcon  />} onClick={handleExport}>
                 Экспорт
               </Button>
               <Button color="inherit" startIcon={<ClearAllIcon />} onClick={() => setClearDialogOpen(true)}>
