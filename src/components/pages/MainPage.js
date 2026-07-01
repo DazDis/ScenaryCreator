@@ -12,6 +12,7 @@ export const MainPage = ({
                              updateScenaryObject,
                              addListItem,
                              removeListItem,
+                             updateListItem,
                              selectScenary,
                          }) => {
     const renderRightPanel = () => {
@@ -23,6 +24,7 @@ export const MainPage = ({
                     onUpdate={updateScenaryObject}
                     onAddListItem={addListItem}
                     onRemoveListItem={removeListItem}
+                    onUpdateListItem={updateListItem}
                     blueprints={blueprints}
                     stages={scenaryObjects}
                 />
@@ -44,7 +46,7 @@ export const MainPage = ({
                 flexDirection: 'column',
                 flexShrink: 0,
                 height: '100%',
-                overflow: 'hidden'  // ← у Paper убираем прокрутку
+                overflow: 'hidden'
             }}>
                 <Box sx={{ flex: 1, overflowY: 'auto' }}>
                     <ScenaryList
