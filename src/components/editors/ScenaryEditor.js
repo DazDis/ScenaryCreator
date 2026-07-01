@@ -2,38 +2,136 @@ import React, { useState } from 'react';
 import {
     Card, CardHeader, CardContent, Stack, TextField, Divider, Typography,
     Box, Paper, IconButton, Button, Dialog, DialogTitle, DialogContent,
-    DialogActions, Collapse
+    DialogActions, Collapse, Tooltip, MenuItem, Select, FormControl, InputLabel
 } from '@mui/material';
 import {
     Edit as EditIcon,
     Close as CloseIcon,
     ExpandMore as ExpandMoreIcon,
-    ExpandLess as ExpandLessIcon
+    ExpandLess as ExpandLessIcon,
+    Help as HelpIcon
 } from '@mui/icons-material';
 import { MethodPicker } from '../pickers/MethodPicker';
 import { TransitionPicker } from '../pickers/TransitionPicker';
 
-// Компонент для списка методов с заголовком и сворачиванием
-const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListItem }) => {
+const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListItem, blueprints, stages }) => {
     const [editIndex, setEditIndex] = useState(null);
-    const [editValue, setEditValue] = useState('');
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(true);
 
+    // Состояния для редактирования
+    const [editBlueprint, setEditBlueprint] = useState('');
+    const [editMethod, setEditMethod] = useState('');
+    const [editParams, setEditParams] = useState([]);
+    const [editStage, setEditStage] = useState('');
+
     const handleEdit = (index) => {
+        const item = items[index];
         setEditIndex(index);
-        setEditValue(items[index]);
+
+        // Разбираем строку метода
+        const parts = item.split('.');
+        if (parts.length >= 2) {
+            setEditBlueprint(parts[0]);
+            const methodPart = parts.slice(1).join('.');
+            // Парсим метод и параметры
+            const methodMatch = methodPart.match(/^([^(]+)(?:\(([^)]*)\))?/);
+            if (methodMatch) {
+                setEditMethod(methodMatch[1].trim());
+                if (methodMatch[2]) {
+                    const params = methodMatch[2].split(',').map(p => p.trim().replace(/^"|"$/g, ''));
+                    setEditParams(params);
+                } else {
+                    setEditParams([]);
+                }
+            }
+        }
+
+        // Для переходов
+        if (parts.length === 3) {
+            setEditBlueprint(parts[0]);
+            setEditMethod(parts[1]);
+            setEditStage(parts[2]);
+        }
+
         setEditDialogOpen(true);
     };
 
     const handleSaveEdit = () => {
-        if (editIndex !== null && editValue.trim()) {
-            onUpdateListItem(listKey, editIndex, editValue.trim());
+        if (editIndex !== null) {
+            let newValue = '';
+
+            // Проверяем тип списка по ключу
+            if (listKey === 'Transition Tasks') {
+                // Это переход
+                if (editBlueprint && editMethod && editStage) {
+                    newValue = `${editBlueprint}.${editMethod}.${editStage}`;
+                } else {
+                    alert('Заполните все поля для перехода');
+                    return;
+                }
+            } else {
+                // Это метод
+                if (editBlueprint && editMethod) {
+                    newValue = `${editBlueprint}.${editMethod}`;
+                    if (editParams.length > 0) {
+                        const paramsStr = editParams.map(p => `"${p.trim()}"`).join(', ');
+                        newValue += `(${paramsStr})`;
+                    } else {
+                        newValue += '()';
+                    }
+                } else {
+                    alert('Заполните объект и метод');
+                    return;
+                }
+            }
+
+            onUpdateListItem(listKey, editIndex, newValue);
             setEditDialogOpen(false);
             setEditIndex(null);
-            setEditValue('');
+            setEditBlueprint('');
+            setEditMethod('');
+            setEditParams([]);
+            setEditStage('');
         }
     };
+
+    const handleCloseEdit = () => {
+        setEditDialogOpen(false);
+        setEditIndex(null);
+        setEditBlueprint('');
+        setEditMethod('');
+        setEditParams([]);
+        setEditStage('');
+    };
+
+    // Получаем методы для выбранного объекта
+    const selectedBlueprintObj = blueprints.find(b => b.name === editBlueprint);
+    const methods = selectedBlueprintObj ? selectedBlueprintObj.methods : [];
+
+    // Получаем поля для перехода
+    const fields = selectedBlueprintObj ? selectedBlueprintObj.fields : [];
+
+    // Параметры выбранного метода
+    const selectedMethodObj = methods.find(m => m.name === editMethod);
+    const methodParams = selectedMethodObj ? selectedMethodObj.parameters : [];
+
+    // Обновляем параметры при выборе метода
+    React.useEffect(() => {
+        if (selectedMethodObj) {
+            const paramCount = selectedMethodObj.parameters.length;
+            if (editParams.length !== paramCount) {
+                setEditParams(Array(paramCount).fill(''));
+            }
+        }
+    }, [editMethod, selectedMethodObj]);
+
+    const stageOptions = stages.map((stage, index) => ({
+        Name: stage.Name || `Этап ${index + 1}`,
+        index: index
+    }));
+
+    const isTransition = listKey === 'Transition Tasks';
 
     return (
         <Paper
@@ -44,7 +142,6 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
                 borderColor: 'divider'
             }}
         >
-            {/* Заголовок блока с кнопкой сворачивания */}
             <Box
                 sx={{
                     display: 'flex',
@@ -69,12 +166,10 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
 
             <Collapse in={isExpanded}>
                 <Box sx={{ p: 2 }}>
-                    {/* Форма добавления - в одну строку сверху */}
                     <Box sx={{ mb: 2 }}>
                         {children}
                     </Box>
 
-                    {/* Список методов с прокруткой */}
                     <Paper
                         variant="outlined"
                         sx={{
@@ -155,23 +250,123 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
                 </Box>
             </Collapse>
 
-            {/* Диалог редактирования */}
-            <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Редактирование элемента</DialogTitle>
+            {/* Диалог редактирования с полями */}
+            <Dialog open={editDialogOpen} onClose={handleCloseEdit} maxWidth="sm" fullWidth>
+                <DialogTitle>
+                    {isTransition ? 'Редактирование перехода' : 'Редактирование метода'}
+                </DialogTitle>
                 <DialogContent>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label="Значение"
-                        fullWidth
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        multiline
-                        rows={2}
-                    />
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Сценарный объект</InputLabel>
+                            <Select
+                                value={editBlueprint}
+                                onChange={(e) => {
+                                    setEditBlueprint(e.target.value);
+                                    setEditMethod('');
+                                    setEditParams([]);
+                                }}
+                                label="Сценарный объект"
+                            >
+                                <MenuItem value="">Выберите объект</MenuItem>
+                                {blueprints.map((bp) => (
+                                    <MenuItem key={bp.name} value={bp.name}>
+                                        {bp.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+
+                        {isTransition ? (
+                            <>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>Сообщение</InputLabel>
+                                    <Select
+                                        value={editMethod}
+                                        onChange={(e) => setEditMethod(e.target.value)}
+                                        label="Сообщение"
+                                        disabled={!editBlueprint}
+                                    >
+                                        <MenuItem value="">Выберите сообщение</MenuItem>
+                                        {fields.map((field) => (
+                                            <MenuItem key={field} value={field}>
+                                                {field}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>Целевой этап</InputLabel>
+                                    <Select
+                                        value={editStage}
+                                        onChange={(e) => setEditStage(e.target.value)}
+                                        label="Целевой этап"
+                                    >
+                                        <MenuItem value="">Выберите этап</MenuItem>
+                                        {stageOptions.map((stage) => (
+                                            <MenuItem key={stage.index} value={stage.Name}>
+                                                {stage.Name}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </>
+                        ) : (
+                            <>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>Метод</InputLabel>
+                                    <Select
+                                        value={editMethod}
+                                        onChange={(e) => {
+                                            setEditMethod(e.target.value);
+                                            const method = methods.find(m => m.name === e.target.value);
+                                            if (method) {
+                                                setEditParams(Array(method.parameters.length).fill(''));
+                                            }
+                                        }}
+                                        label="Метод"
+                                        disabled={!editBlueprint}
+                                    >
+                                        <MenuItem value="">Выберите метод</MenuItem>
+                                        {methods.map((m) => (
+                                            <MenuItem key={m.name} value={m.name}>
+                                                {m.name}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
+                                {methodParams.length > 0 && (
+                                    <Box>
+                                        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                            Параметры:
+                                        </Typography>
+                                        <Stack spacing={1}>
+                                            {methodParams.map((param, idx) => (
+                                                <TextField
+                                                    key={idx}
+                                                    size="small"
+                                                    label={param}
+                                                    value={editParams[idx] || ''}
+                                                    onChange={(e) => {
+                                                        const newParams = [...editParams];
+                                                        newParams[idx] = e.target.value;
+                                                        setEditParams(newParams);
+                                                    }}
+                                                    fullWidth
+                                                    placeholder={`Введите значение для ${param}`}
+                                                />
+                                            ))}
+                                        </Stack>
+                                    </Box>
+                                )}
+                            </>
+                        )}
+                    </Stack>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setEditDialogOpen(false)}>Отмена</Button>
+                    <Button onClick={handleCloseEdit}>Отмена</Button>
                     <Button onClick={handleSaveEdit} variant="contained" color="primary">
                         Сохранить
                     </Button>
@@ -193,25 +388,55 @@ export const ScenaryEditor = ({
     if (!scenaryObject) return null;
     const obj = scenaryObject;
 
+    const fieldDescriptions = {
+        name: 'Название этапа сценария. Используется для идентификации этапа в списке и в переходах между этапами.',
+        expression: 'Выводимое сообщение - текст, который будет отображаться пользователю при выполнении данного этапа сценария.'
+    };
+
     return (
         <Card>
             <CardHeader title="Редактирование этапа сценария" />
             <CardContent>
                 <Stack spacing={2}>
-                    <TextField
-                        label="Название"
-                        value={obj.Name || ''}
-                        onChange={(e) => onUpdate('Name', e.target.value)}
-                        fullWidth
-                        size="small"
-                    />
-                    <TextField
-                        label="Выводимое сообщение"
-                        value={obj.Expression || ''}
-                        onChange={(e) => onUpdate('Expression', e.target.value)}
-                        fullWidth
-                        size="small"
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TextField
+                            label="Название"
+                            value={obj.Name || ''}
+                            onChange={(e) => onUpdate('Name', e.target.value)}
+                            fullWidth
+                            size="small"
+                        />
+                        <Tooltip
+                            title={fieldDescriptions.name}
+                            placement="top"
+                            arrow
+                            enterDelay={300}
+                        >
+                            <IconButton size="small" sx={{ color: 'text.secondary', flexShrink: 0 }}>
+                                <HelpIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TextField
+                            label="Выводимое сообщение"
+                            value={obj.Expression || ''}
+                            onChange={(e) => onUpdate('Expression', e.target.value)}
+                            fullWidth
+                            size="small"
+                        />
+                        <Tooltip
+                            title={fieldDescriptions.expression}
+                            placement="top"
+                            arrow
+                            enterDelay={300}
+                        >
+                            <IconButton size="small" sx={{ color: 'text.secondary', flexShrink: 0 }}>
+                                <HelpIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
 
                     <Divider />
 
@@ -221,6 +446,8 @@ export const ScenaryEditor = ({
                         title="Действия при старте этапа"
                         listKey="Actions on Start"
                         onUpdateListItem={onUpdateListItem}
+                        blueprints={blueprints}
+                        stages={stages}
                     >
                         <MethodPicker
                             items={[]}
@@ -236,6 +463,8 @@ export const ScenaryEditor = ({
                         title="Действия при завершении этапа"
                         listKey="Actions on End"
                         onUpdateListItem={onUpdateListItem}
+                        blueprints={blueprints}
+                        stages={stages}
                     >
                         <MethodPicker
                             items={[]}
@@ -251,6 +480,8 @@ export const ScenaryEditor = ({
                         title="Переходы между этапами"
                         listKey="Transition Tasks"
                         onUpdateListItem={onUpdateListItem}
+                        blueprints={blueprints}
+                        stages={stages}
                     >
                         <TransitionPicker
                             items={[]}

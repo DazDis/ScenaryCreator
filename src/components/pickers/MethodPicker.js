@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import {
     Box, Stack, Chip, TextField, Button, Typography, Tooltip,
-    Autocomplete, Select, MenuItem, FormControl, InputLabel
+    Autocomplete, IconButton, MenuItem, Select, FormControl, InputLabel
 } from '@mui/material';
-import { Add as AddIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Add as AddIcon, Close as CloseIcon, Help as HelpIcon } from '@mui/icons-material';
 
 export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => {
     const [selectedBlueprint, setSelectedBlueprint] = useState(null);
     const [selectedMethod, setSelectedMethod] = useState(null);
     const [paramValues, setParamValues] = useState([]);
-    const [errors, setErrors] = useState({});
 
     const selectedBlueprintObj = blueprints.find(b => b.name === selectedBlueprint?.name);
     const methods = selectedBlueprintObj ? selectedBlueprintObj.methods : [];
@@ -18,14 +17,12 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
 
     const resetParamValues = (paramsCount) => {
         setParamValues(Array(paramsCount).fill(''));
-        setErrors({});
     };
 
     const handleBlueprintChange = (newValue) => {
         setSelectedBlueprint(newValue);
         setSelectedMethod(null);
         setParamValues([]);
-        setErrors({});
     };
 
     const handleMethodChange = (newValue) => {
@@ -35,7 +32,6 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
             resetParamValues(method.parameters.length);
         } else {
             setParamValues([]);
-            setErrors({});
         }
     };
 
@@ -43,23 +39,6 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
         const newVals = [...paramValues];
         newVals[idx] = value;
         setParamValues(newVals);
-        setErrors(prev => ({ ...prev, [idx]: '' }));
-    };
-
-    const validateParam = (value, type) => {
-        if (type === 'number') {
-            if (value === '') return { valid: true };
-            const num = Number(value);
-            if (isNaN(num)) return { valid: false, message: 'Введите число' };
-            return { valid: true, value: num };
-        }
-        if (type === 'boolean') {
-            if (value !== 'true' && value !== 'false') {
-                return { valid: false, message: 'Выберите true или false' };
-            }
-            return { valid: true, value: value === 'true' };
-        }
-        return { valid: true, value };
     };
 
     const handleAdd = () => {
@@ -67,66 +46,144 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
             alert('Выберите сценарный объект и метод');
             return;
         }
-
         const methodObj = methods.find(m => m.name === selectedMethod.name);
-        if (!methodObj) return;
-
-        const paramErrors = {};
-        let hasError = false;
-        const validatedValues = [];
-
-        methodObj.parameters.forEach((param, idx) => {
-            const rawValue = paramValues[idx] || '';
-            const result = validateParam(rawValue, param.type);
-            if (!result.valid) {
-                paramErrors[idx] = result.message;
-                hasError = true;
-            } else {
-                validatedValues.push(result.value);
-            }
-        });
-
-        if (hasError) {
-            setErrors(paramErrors);
-            return;
-        }
-
         let methodCall = `${selectedBlueprint.name}.${selectedMethod.name}`;
-        if (validatedValues.length > 0) {
-            const formattedValues = validatedValues.map((val, idx) => {
-                const paramType = methodObj.parameters[idx].type;
-                if (paramType === 'string' || paramType === 'any') {
-                    return `"${String(val)}"`;
+        if (methodObj && methodObj.parameters.length > 0) {
+            const values = paramValues.map(v => {
+                const trimmed = v.trim();
+                if (!trimmed) return '""';
+                // Проверяем, является ли значение числом
+                if (!isNaN(trimmed) && trimmed !== '') {
+                    return trimmed;
                 }
-                if (paramType === 'number') {
-                    return String(val);
+                // Проверяем, является ли значение boolean
+                if (trimmed.toLowerCase() === 'true' || trimmed.toLowerCase() === 'false') {
+                    return trimmed.toLowerCase();
                 }
-                if (paramType === 'boolean') {
-                    return val ? 'true' : 'false';
-                }
-                return String(val);
+                // Иначе строка в кавычках
+                return `"${trimmed}"`;
             });
-            methodCall += `(${formattedValues.join(', ')})`;
+            methodCall += `(${values.join(', ')})`;
         } else {
             methodCall += '()';
         }
-
         if (items.includes(methodCall)) {
             alert('Этот вызов уже добавлен');
             return;
         }
-
         onAddItem(methodCall);
         setSelectedBlueprint(null);
         setSelectedMethod(null);
         setParamValues([]);
-        setErrors({});
+    };
+
+    const fieldDescriptions = {
+        blueprint: 'Сценарный объект - это контейнер, содержащий набор методов. Выберите объект, к которому относится вызываемый метод.',
+        method: 'Метод - это функция, выполняющая определенное действие в рамках выбранного сценарного объекта.',
+        parameters: 'Параметры - это значения, передаваемые в метод. Заполните их в соответствии с ожидаемыми типами данных метода.',
+        addButton: 'Нажмите для добавления метода в список действий этапа. Метод будет выполняться при достижении данного этапа.'
+    };
+
+    // Определение типа параметра по имени
+    const getParamType = (paramName) => {
+        const booleanParams = ['isActive', 'isEnabled', 'isValid', 'isComplete', 'success', 'status', 'hasError', 'isDeleted', 'isPublic'];
+        const numberParams = ['userId', 'count', 'limit', 'offset', 'ttl', 'timeout', 'retryCount', 'port', 'priority', 'maxRetries', 'index', 'page', 'size', 'total'];
+
+        if (booleanParams.some(p => paramName.toLowerCase().includes(p.toLowerCase()))) {
+            return 'boolean';
+        }
+        if (numberParams.some(p => paramName.toLowerCase().includes(p.toLowerCase()))) {
+            return 'number';
+        }
+        return 'string';
+    };
+
+    // Получение описания параметра
+    const paramDescriptions = {
+        'userId': 'Идентификатор пользователя в системе. Используется для персонализации и поиска данных конкретного пользователя.',
+        'eventName': 'Название события для аналитики. Используется для отслеживания действий пользователя.',
+        'eventType': 'Тип события: клик, просмотр, отправка формы и т.д. Определяет категорию аналитического события.',
+        'properties': 'Объект с дополнительными свойствами события. Содержит метаданные о событии.',
+        'data': 'Данные для обработки. Может содержать любую структуру в зависимости от метода.',
+        'requestId': 'Уникальный идентификатор запроса. Используется для отслеживания и логирования.',
+        'status': 'Статус операции: success, error, pending. Определяет результат выполнения.',
+        'message': 'Текстовое сообщение. Используется для уведомлений и логирования.',
+        'payload': 'Данные для отправки. Содержит основную информацию для передачи.',
+        'deviceToken': 'Токен устройства для push-уведомлений. Идентифицирует устройство получателя.',
+        'notificationId': 'Идентификатор уведомления. Используется для отслеживания статуса доставки.',
+        'recipientId': 'Идентификатор получателя. Определяет кому адресовано уведомление или сообщение.',
+        'content': 'Содержимое уведомления или сообщения. Основной текст для отображения.',
+        'reportId': 'Идентификатор отчета. Используется для сохранения и получения отчетов.',
+        'widgets': 'Данные для обновления виджетов. Содержит информацию для отображения на дашборде.',
+        'limit': 'Лимит количества записей. Ограничивает объем возвращаемых данных.',
+        'offset': 'Смещение для пагинации. Определяет с какой записи начинать выборку.',
+        'filter': 'Фильтр для данных. Используется для уточнения выборки.',
+        'sort': 'Параметры сортировки. Определяет порядок возвращаемых данных.',
+        'userIdData': 'Данные пользователя. Содержит информацию о пользователе для кэширования.',
+        'key': 'Ключ для кэша. Уникальный идентификатор для хранения данных.',
+        'value': 'Значение для кэша. Данные для сохранения в кэше.',
+        'ttl': 'Время жизни кэша в секундах. Определяет срок актуальности данных.',
+        'config': 'Конфигурация. Содержит настройки для выполнения операции.',
+        'options': 'Дополнительные опции. Расширяет функциональность метода.'
+    };
+
+    const getParamDescription = (paramName) => {
+        return paramDescriptions[paramName] || `Параметр "${paramName}" - значение, передаваемое в метод.`;
+    };
+
+    // Компонент для поля ввода с валидацией типа
+    const ParamInput = ({ param, value, onChange, type }) => {
+        if (type === 'boolean') {
+            return (
+                <FormControl size="small" sx={{ width: 120 }}>
+                    <Select
+                        value={value || ''}
+                        onChange={(e) => onChange(e.target.value)}
+                        displayEmpty
+                    >
+                        <MenuItem value="">Выберите</MenuItem>
+                        <MenuItem value="true">True</MenuItem>
+                        <MenuItem value="false">False</MenuItem>
+                    </Select>
+                </FormControl>
+            );
+        }
+
+        if (type === 'number') {
+            return (
+                <TextField
+                    size="small"
+                    placeholder={param}
+                    value={value || ''}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || /^-?\d*\.?\d*$/.test(val)) {
+                            onChange(val);
+                        }
+                    }}
+                    sx={{ width: 120 }}
+                    inputProps={{
+                        inputMode: 'numeric',
+                        pattern: '[0-9]*'
+                    }}
+                />
+            );
+        }
+
+        return (
+            <TextField
+                size="small"
+                placeholder={param}
+                value={value || ''}
+                onChange={(e) => onChange(e.target.value)}
+                sx={{ width: 120 }}
+            />
+        );
     };
 
     return (
         <Box sx={{ mb: 2 }}>
             <Stack spacing={1}>
-                {/* Список добавленных методов */}
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                     {items.map((item, idx) => (
                         <Chip
@@ -140,134 +197,172 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
                             sx={{
                                 '& .MuiChip-deleteIcon': {
                                     color: 'primary.main',
-                                    '&:hover': { color: 'error.main' },
+                                    '&:hover': {
+                                        color: 'error.main',
+                                    },
                                 },
                             }}
                         />
                     ))}
                 </Box>
 
-                {/* Форма добавления */}
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'flex-start' }}>
-                    <Autocomplete
-                        size="small"
-                        options={blueprints}
-                        getOptionLabel={(option) => option.name}
-                        value={selectedBlueprint}
-                        onChange={(event, newValue) => handleBlueprintChange(newValue)}
-                        sx={{ minWidth: 180, flex: '1 1 180px' }}
-                        renderInput={(params) => (
-                            <TextField {...params} label="Сценарный объект" placeholder="Поиск объекта..." size="small" />
-                        )}
-                        isOptionEqualToValue={(option, value) => option.name === value?.name}
-                        noOptionsText="Ничего не найдено"
-                    />
-
-                    <Autocomplete
-                        size="small"
-                        options={methods}
-                        getOptionLabel={(option) => option.name}
-                        value={selectedMethod}
-                        onChange={(event, newValue) => handleMethodChange(newValue)}
-                        disabled={!selectedBlueprint}
-                        sx={{ minWidth: 180, flex: '1 1 180px' }}
-                        renderInput={(params) => (
-                            <TextField {...params} label="Метод" placeholder="Поиск метода..." size="small" />
-                        )}
-                        isOptionEqualToValue={(option, value) => option.name === value?.name}
-                        noOptionsText="Нет доступных методов"
-                        renderOption={(props, option) => (
-                            <li {...props}>
-                                <Tooltip title={option.description || 'Нет описания'} placement="right" arrow>
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                                        <Typography variant="body2">{option.name}</Typography>
-                                        {option.description && (
-                                            <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                                {option.description.length > 50 ? option.description.substring(0, 50) + '...' : option.description}
-                                            </Typography>
-                                        )}
-                                    </Box>
-                                </Tooltip>
-                            </li>
-                        )}
-                    />
-
-                    {parameters.length > 0 && (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, flex: '1 1 120px' }}>
-                            {parameters.map((param, idx) => {
-                                const value = paramValues[idx] || '';
-                                let input;
-
-                                if (param.type === 'boolean') {
-                                    input = (
-                                        <FormControl size="small" sx={{ minWidth: 80, flex: '1 1 80px' }}>
-                                            <InputLabel id={`param-boolean-label-${idx}`}>{param.name}</InputLabel>
-                                            <Select
-                                                labelId={`param-boolean-label-${idx}`}
-                                                value={value || 'false'}
-                                                onChange={(e) => handleParamChange(idx, e.target.value)}
-                                                label={param.name}
-                                                error={!!errors[idx]}
-                                            >
-                                                <MenuItem value="true">true</MenuItem>
-                                                <MenuItem value="false">false</MenuItem>
-                                            </Select>
-                                            {errors[idx] && (
-                                                <Typography variant="caption" color="error">{errors[idx]}</Typography>
-                                            )}
-                                        </FormControl>
-                                    );
-                                } else if (param.type === 'number') {
-                                    input = (
-                                        <TextField
-                                            size="small"
-                                            type="number"
-                                            placeholder={param.name}
-                                            value={value}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                if (val === '' || !isNaN(val)) {
-                                                    handleParamChange(idx, val);
-                                                }
-                                            }}
-                                            error={!!errors[idx]}
-                                            helperText={errors[idx] || ''}
-                                            sx={{ minWidth: 80, flex: '1 1 80px' }}
-                                        />
-                                    );
-                                } else {
-                                    input = (
-                                        <TextField
-                                            size="small"
-                                            placeholder={param.name}
-                                            value={value}
-                                            onChange={(e) => handleParamChange(idx, e.target.value)}
-                                            error={!!errors[idx]}
-                                            helperText={errors[idx] || ''}
-                                            sx={{ minWidth: 80, flex: '1 1 80px' }}
-                                        />
-                                    );
-                                }
-
-                                return (
-                                    <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Typography variant="caption" color="text.secondary">{param.name}:</Typography>
-                                        {input}
-                                    </Box>
-                                );
-                            })}
+                <Box sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1
+                }}>
+                    <Box sx={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 1,
+                        alignItems: 'center'
+                    }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 180 }}>
+                            <Autocomplete
+                                size="small"
+                                options={blueprints}
+                                getOptionLabel={(option) => option.name}
+                                value={selectedBlueprint}
+                                onChange={(event, newValue) => handleBlueprintChange(newValue)}
+                                sx={{ flex: 1 }}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label="Сценарный объект"
+                                        placeholder="Поиск объекта..."
+                                        size="small"
+                                    />
+                                )}
+                                isOptionEqualToValue={(option, value) => option.name === value?.name}
+                                noOptionsText="Ничего не найдено"
+                            />
+                            <Tooltip
+                                title={fieldDescriptions.blueprint}
+                                placement="top"
+                                arrow
+                                enterDelay={300}
+                            >
+                                <IconButton size="small" sx={{ color: 'text.secondary', ml: 0.5 }}>
+                                    <HelpIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
                         </Box>
-                    )}
 
-                    <Button
-                        variant="contained"
-                        size="small"
-                        onClick={handleAdd}
-                        startIcon={<AddIcon />}
-                        sx={{ flexShrink: 0 }}
-                    >
-                        Добавить
-                    </Button>
+                        <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 180 }}>
+                            <Autocomplete
+                                size="small"
+                                options={methods}
+                                getOptionLabel={(option) => option.name}
+                                value={selectedMethod}
+                                onChange={(event, newValue) => handleMethodChange(newValue)}
+                                disabled={!selectedBlueprint}
+                                sx={{ flex: 1 }}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label="Метод"
+                                        placeholder="Поиск метода..."
+                                        size="small"
+                                    />
+                                )}
+                                isOptionEqualToValue={(option, value) => option.name === value?.name}
+                                noOptionsText="Нет доступных методов"
+                                renderOption={(props, option) => (
+                                    <li {...props}>
+                                        <Tooltip
+                                            title={option.description || 'Нет описания'}
+                                            placement="right"
+                                            arrow
+                                        >
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                                                <Typography variant="body2">{option.name}</Typography>
+                                                {option.description && (
+                                                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                                        {option.description.length > 50 ? option.description.substring(0, 50) + '...' : option.description}
+                                                    </Typography>
+                                                )}
+                                            </Box>
+                                        </Tooltip>
+                                    </li>
+                                )}
+                            />
+                            <Tooltip
+                                title={fieldDescriptions.method}
+                                placement="top"
+                                arrow
+                                enterDelay={300}
+                            >
+                                <IconButton size="small" sx={{ color: 'text.secondary', ml: 0.5 }}>
+                                    <HelpIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
+                    </Box>
+
+                    <Box sx={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 1,
+                        alignItems: 'center'
+                    }}>
+                        {parameters.length > 0 && (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+                                {parameters.map((param, idx) => {
+                                    const paramType = getParamType(param);
+                                    return (
+                                        <Box key={idx} sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <ParamInput
+                                                param={param}
+                                                value={paramValues[idx] || ''}
+                                                onChange={(value) => handleParamChange(idx, value)}
+                                                type={paramType}
+                                            />
+                                            <Tooltip
+                                                title={getParamDescription(param)}
+                                                placement="top"
+                                                arrow
+                                                enterDelay={300}
+                                            >
+                                                <IconButton size="small" sx={{ color: 'text.secondary', ml: 0.5 }}>
+                                                    <HelpIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Typography variant="caption" sx={{ ml: 0.5, color: 'text.secondary', fontSize: 10 }}>
+                                                {paramType === 'boolean' ? 'bool' : paramType === 'number' ? 'num' : 'str'}
+                                            </Typography>
+                                        </Box>
+                                    );
+                                })}
+                                <Tooltip
+                                    title={fieldDescriptions.parameters}
+                                    placement="top"
+                                    arrow
+                                    enterDelay={300}
+                                >
+                                    <IconButton size="small" sx={{ color: 'text.secondary' }}>
+                                        <HelpIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                            </Box>
+                        )}
+
+                        <Tooltip
+                            title={fieldDescriptions.addButton}
+                            placement="top"
+                            arrow
+                            enterDelay={300}
+                        >
+                            <Button
+                                variant="contained"
+                                size="small"
+                                onClick={handleAdd}
+                                startIcon={<AddIcon />}
+                                sx={{ flexShrink: 0 }}
+                            >
+                                Добавить
+                            </Button>
+                        </Tooltip>
+                    </Box>
                 </Box>
             </Stack>
         </Box>
