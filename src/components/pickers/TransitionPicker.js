@@ -17,7 +17,13 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
             alert('Выберите сценарный объект, сообщение и целевой этап');
             return;
         }
-        const transitionRef = `${selectedBlueprint.name}.${selectedField}.${selectedStage.Name || selectedStage}`;
+        // Используем Name (заглавная) и делаем строку
+        const stageName = selectedStage?.Name || '';
+        if (!stageName) {
+            alert('Некорректное имя этапа');
+            return;
+        }
+        const transitionRef = `${selectedBlueprint.name}.${selectedField}.${stageName}`;
         if (items.includes(transitionRef)) {
             alert('Такой переход уже добавлен');
             return;
@@ -28,11 +34,10 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
         setSelectedStage(null);
     };
 
-    // Функция для красивого отображения перехода - ваш формат
     const formatTransition = (item) => {
         const parts = item.split('.');
         if (parts.length === 3) {
-            return `${parts[0]} =>"${parts[1]}"; => '${parts[2]}'`;
+            return `По сообщению "${parts[0]} =>"${parts[1]}";" Переход на этап '${parts[2]}'`;
         } else if (parts.length === 2) {
             return `${parts[0]}=>"${parts[1]}";`;
         } else {
@@ -40,7 +45,6 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
         }
     };
 
-    // Создаем массив с названиями этапов для Autocomplete
     const stageOptions = stages.map((stage, index) => ({
         Name: stage.Name || `Этап ${index + 1}`,
         index: index
@@ -65,7 +69,6 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
                     })}
                 </Box>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {/* Autocomplete для сценарных объектов */}
                     <Autocomplete
                         size="small"
                         options={blueprints}
@@ -87,7 +90,6 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
                         noOptionsText="Ничего не найдено"
                     />
 
-                    {/* Autocomplete для сообщений */}
                     <Autocomplete
                         size="small"
                         options={fields}
@@ -105,7 +107,6 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
                         noOptionsText="Нет доступных сообщений"
                     />
 
-                    {/* Autocomplete для этапов */}
                     <Autocomplete
                         size="small"
                         options={stageOptions}

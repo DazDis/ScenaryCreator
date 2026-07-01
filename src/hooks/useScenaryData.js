@@ -1,41 +1,63 @@
 import { useState, useEffect, useCallback } from 'react';
 import { STORAGE_KEY, createEmptyScenaryObject, createEmptyBlueprint } from '../components/common/Constants';
 
+// ---- Функция нормализации параметров ----
+    const normalizeParameters = (params) => {
+    if (!Array.isArray(params)) return [];
+    return params.map(p => {
+        if (typeof p === 'string') {
+        return { name: p, type: 'string' };
+        }
+        if (typeof p === 'object' && p !== null && 'name' in p) {
+        return { ...p, type: p.type || 'string' };
+        }
+        return { name: String(p), type: 'string' };
+    });
+    };
+
 export const useScenaryData = () => {
     const [scenaryObjects, setScenaryObjects] = useState([]);
     const [selectedIndex, setSelectedIndex] = useState(null);
     const [blueprints, setBlueprints] = useState([]);
     const [selectedBlueprintIndex, setSelectedBlueprintIndex] = useState(null);
 
-    // Загрузка из localStorage
+    // Загрузка из localStorage с нормализацией
     useEffect(() => {
         const savedData = localStorage.getItem(STORAGE_KEY);
         if (savedData) {
-            try {
-                const data = JSON.parse(savedData);
-                if (data && typeof data === 'object') {
-                    if (Array.isArray(data.scenaryObjects)) {
-                        setScenaryObjects(data.scenaryObjects);
-                    }
-                    if (Array.isArray(data.blueprints)) {
-                        setBlueprints(data.blueprints);
-                    }
-                }
-            } catch (err) {
-                console.error('Ошибка загрузки из localStorage:', err);
+        try {
+            const data = JSON.parse(savedData);
+            if (data && typeof data === 'object') {
+            // Нормализуем blueprints
+            if (Array.isArray(data.blueprints)) {
+                const normalizedBlueprints = data.blueprints.map(bp => ({
+                ...bp,
+                methods: bp.methods.map(m => ({
+                    ...m,
+                    parameters: normalizeParameters(m.parameters || [])
+                }))
+                }));
+                setBlueprints(normalizedBlueprints);
             }
+            if (Array.isArray(data.scenaryObjects)) {
+                setScenaryObjects(data.scenaryObjects);
+            }
+            }
+        } catch (err) {
+            console.error('Ошибка загрузки из localStorage:', err);
+        }
         }
     }, []);
 
-    // Автосохранение
+    // Автосохранение (без изменений)
     useEffect(() => {
         const timer = setTimeout(() => {
-            const data = { scenaryObjects, blueprints };
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-            } catch (err) {
-                console.error('Ошибка автосохранения:', err);
-            }
+        const data = { scenaryObjects, blueprints };
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch (err) {
+            console.error('Ошибка автосохранения:', err);
+        }
         }, 300);
         return () => clearTimeout(timer);
     }, [scenaryObjects, blueprints]);
@@ -257,38 +279,31 @@ export const useScenaryData = () => {
         localStorage.removeItem(STORAGE_KEY);
     }, []);
 
-    return {
-        // Состояния
-        scenaryObjects,
-        setScenaryObjects,
-        selectedIndex,
-        setSelectedIndex,
-        blueprints,
-        setBlueprints,
-        selectedBlueprintIndex,
-        setSelectedBlueprintIndex,
-
-        // Операции с этапами
-        addScenaryObject,
-        deleteScenaryObject,
-        updateScenaryObject,
-        addListItem,
-        removeListItem,
-        selectScenary,
-
-        // Операции с blueprint
-        addBlueprint,
-        deleteBlueprint,
-        updateBlueprint,
-        addMethodToBlueprint,
-        removeMethodFromBlueprint,
-        updateMethodParameters,
-        updateMethodDescription,
-        addFieldToBlueprint,
-        removeFieldFromBlueprint,
-        selectBlueprint,
-
-        // Общие
-        clearAllData
-    };
+      return {
+    scenaryObjects,
+    setScenaryObjects,
+    selectedIndex,
+    setSelectedIndex,
+    blueprints,
+    setBlueprints,
+    selectedBlueprintIndex,
+    setSelectedBlueprintIndex,
+    addScenaryObject,
+    deleteScenaryObject,
+    updateScenaryObject,
+    addListItem,
+    removeListItem,
+    selectScenary,
+    addBlueprint,
+    deleteBlueprint,
+    updateBlueprint,
+    addMethodToBlueprint,
+    removeMethodFromBlueprint,
+    updateMethodParameters,
+    updateMethodDescription,
+    addFieldToBlueprint,
+    removeFieldFromBlueprint,
+    selectBlueprint,
+    clearAllData
+  };
 };

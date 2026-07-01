@@ -16,6 +16,20 @@ import { ObjectsPage } from './components/pages/ObjectsPage';
 import { TreePage } from './components/pages/TreePage';
 import { useScenaryData } from './hooks/useScenaryData';
 
+// ---- Функция нормализации параметров (дублируем здесь или импортируем из хука) ----
+const normalizeParameters = (params) => {
+  if (!Array.isArray(params)) return [];
+  return params.map(p => {
+    if (typeof p === 'string') {
+      return { name: p, type: 'string' };
+    }
+    if (typeof p === 'object' && p !== null && 'name' in p) {
+      return { ...p, type: p.type || 'string' };
+    }
+    return { name: String(p), type: 'string' };
+  });
+};
+
 function App() {
   const {
     scenaryObjects,
@@ -51,10 +65,10 @@ function App() {
   const fileInputRef = useRef(null);
 
   const updateTransitionTasks = (index, newTasks) => {
-  if (index < 0 || index >= scenaryObjects.length) return;
-  const updated = [...scenaryObjects];
-  updated[index] = { ...updated[index], 'Transition Tasks': newTasks };
-  setScenaryObjects(updated);
+    if (index < 0 || index >= scenaryObjects.length) return;
+    const updated = [...scenaryObjects];
+    updated[index] = { ...updated[index], 'Transition Tasks': newTasks };
+    setScenaryObjects(updated);
   };
 
   const handleImport = (e) => {
@@ -67,21 +81,32 @@ function App() {
         const data = JSON.parse(ev.target.result);
 
         if (data && typeof data === 'object' && 'scenaryObjects' in data && 'blueprints' in data) {
+          // ---- Нормализация blueprints ----
+          let normalizedBlueprints = [];
+          if (Array.isArray(data.blueprints)) {
+            normalizedBlueprints = data.blueprints.map(bp => ({
+              ...bp,
+              methods: bp.methods.map(m => ({
+                ...m,
+                parameters: normalizeParameters(m.parameters || [])
+              }))
+            }));
+          }
+
           if (Array.isArray(data.scenaryObjects)) {
             setScenaryObjects(data.scenaryObjects);
           }
-          if (Array.isArray(data.blueprints)) {
-            setBlueprints(data.blueprints);
-          }
+          setBlueprints(normalizedBlueprints);
           setSelectedIndex(null);
           setSelectedBlueprintIndex(null);
           setSnackbar({
             open: true,
-            message: `Импортировано: ${data.scenaryObjects?.length || 0} этапов и ${data.blueprints?.length || 0} объектов`,
+            message: `Импортировано: ${data.scenaryObjects?.length || 0} этапов и ${normalizedBlueprints?.length || 0} объектов`,
             severity: 'success'
           });
         }
         else if (Array.isArray(data)) {
+          // Старый формат (только массив этапов) – без blueprints
           setScenaryObjects(data);
           setBlueprints([]);
           setSelectedIndex(null);
@@ -127,36 +152,36 @@ function App() {
     switch (currentPage) {
       case 'main':
         return (
-            <MainPage
-                scenaryObjects={scenaryObjects}
-                selectedIndex={selectedIndex}
-                blueprints={blueprints}
-                addScenaryObject={addScenaryObject}
-                deleteScenaryObject={deleteScenaryObject}
-                updateScenaryObject={updateScenaryObject}
-                addListItem={addListItem}
-                removeListItem={removeListItem}
-                selectScenary={selectScenary}
-            />
+          <MainPage
+            scenaryObjects={scenaryObjects}
+            selectedIndex={selectedIndex}
+            blueprints={blueprints}
+            addScenaryObject={addScenaryObject}
+            deleteScenaryObject={deleteScenaryObject}
+            updateScenaryObject={updateScenaryObject}
+            addListItem={addListItem}
+            removeListItem={removeListItem}
+            selectScenary={selectScenary}
+          />
         );
       case 'objects':
         return (
-            <ObjectsPage
-                blueprints={blueprints}
-                selectedBlueprintIndex={selectedBlueprintIndex}
-                addBlueprint={addBlueprint}
-                deleteBlueprint={deleteBlueprint}
-                updateBlueprint={updateBlueprint}
-                addMethodToBlueprint={addMethodToBlueprint}
-                removeMethodFromBlueprint={removeMethodFromBlueprint}
-                updateMethodParameters={updateMethodParameters}
-                updateMethodDescription={updateMethodDescription}
-                addFieldToBlueprint={addFieldToBlueprint}
-                removeFieldFromBlueprint={removeFieldFromBlueprint}
-                selectBlueprint={selectBlueprint}
-            />
+          <ObjectsPage
+            blueprints={blueprints}
+            selectedBlueprintIndex={selectedBlueprintIndex}
+            addBlueprint={addBlueprint}
+            deleteBlueprint={deleteBlueprint}
+            updateBlueprint={updateBlueprint}
+            addMethodToBlueprint={addMethodToBlueprint}
+            removeMethodFromBlueprint={removeMethodFromBlueprint}
+            updateMethodParameters={updateMethodParameters}
+            updateMethodDescription={updateMethodDescription}
+            addFieldToBlueprint={addFieldToBlueprint}
+            removeFieldFromBlueprint={removeFieldFromBlueprint}
+            selectBlueprint={selectBlueprint}
+          />
         );
-        case 'tree':
+      case 'tree':
         return (
           <TreePage
             scenaryObjects={scenaryObjects}
@@ -166,97 +191,97 @@ function App() {
             updateScenaryObject={updateScenaryObject}
             addListItem={addListItem}
             removeListItem={removeListItem}
-            updateTransitionTasks={updateTransitionTasks} 
+            updateTransitionTasks={updateTransitionTasks}
           />
         );
       default:
         return (
-            <MainPage
-                scenaryObjects={scenaryObjects}
-                selectedIndex={selectedIndex}
-                blueprints={blueprints}
-                addScenaryObject={addScenaryObject}
-                deleteScenaryObject={deleteScenaryObject}
-                updateScenaryObject={updateScenaryObject}
-                addListItem={addListItem}
-                removeListItem={removeListItem}
-                selectScenary={selectScenary}
-            />
+          <MainPage
+            scenaryObjects={scenaryObjects}
+            selectedIndex={selectedIndex}
+            blueprints={blueprints}
+            addScenaryObject={addScenaryObject}
+            deleteScenaryObject={deleteScenaryObject}
+            updateScenaryObject={updateScenaryObject}
+            addListItem={addListItem}
+            removeListItem={removeListItem}
+            selectScenary={selectScenary}
+          />
         );
     }
   };
 
   return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-          <AppBar position="static" sx={{ backgroundColor: '#003366' }}>
-            <Toolbar>
-              <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
-                Редактор сценариев
-              </Typography>
-              <Button color="inherit" startIcon={<UploadIcon />} onClick={() => fileInputRef.current?.click()}>
-                Импорт
-              </Button>
-              <input
-                  type="file"
-                  accept=".json"
-                  ref={fileInputRef}
-                  onChange={handleImport}
-                  style={{ display: 'none' }}
-              />
-              <Button color="inherit" startIcon={<DownloadIcon />} onClick={handleExport}>
-                Экспорт
-              </Button>
-              <Button color="inherit" startIcon={<ClearAllIcon />} onClick={() => setClearDialogOpen(true)}>
-                Очистить все
-              </Button>
-            </Toolbar>
-          </AppBar>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <AppBar position="static" sx={{ backgroundColor: '#003366' }}>
+          <Toolbar>
+            <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
+              Редактор сценариев
+            </Typography>
+            <Button color="inherit" startIcon={<UploadIcon />} onClick={() => fileInputRef.current?.click()}>
+              Импорт
+            </Button>
+            <input
+              type="file"
+              accept=".json"
+              ref={fileInputRef}
+              onChange={handleImport}
+              style={{ display: 'none' }}
+            />
+            <Button color="inherit" startIcon={<DownloadIcon />} onClick={handleExport}>
+              Экспорт
+            </Button>
+            <Button color="inherit" startIcon={<ClearAllIcon />} onClick={() => setClearDialogOpen(true)}>
+              Очистить все
+            </Button>
+          </Toolbar>
+        </AppBar>
 
-          <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-            <Box sx={{ width: 240, flexShrink: 0 }}>
-              <SideMenu currentPage={currentPage} onPageChange={setCurrentPage} />
-            </Box>
-
-            <Box sx={{ flex: 1, overflow: 'hidden' }}>
-              {renderPage()}
-            </Box>
+        <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          <Box sx={{ width: 240, flexShrink: 0 }}>
+            <SideMenu currentPage={currentPage} onPageChange={setCurrentPage} />
           </Box>
 
-          <Snackbar
-              open={snackbar.open}
-              autoHideDuration={3000}
-              onClose={() => setSnackbar({ ...snackbar, open: false })}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          >
-            <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
-              {snackbar.message}
-            </Alert>
-          </Snackbar>
-
-          <Dialog open={clearDialogOpen} onClose={() => setClearDialogOpen(false)}>
-            <DialogTitle>Очистить все данные?</DialogTitle>
-            <DialogContent>
-              <Typography>
-                Это действие удалит все этапы сценария и сценарные объекты из localStorage.
-                Восстановить данные будет невозможно.
-              </Typography>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setClearDialogOpen(false)}>Отмена</Button>
-              <Button
-                  onClick={handleClearAll}
-                  color="error"
-                  variant="contained"
-                  startIcon={<ClearAllIcon />}
-              >
-                Очистить все
-              </Button>
-            </DialogActions>
-          </Dialog>
+          <Box sx={{ flex: 1, overflow: 'hidden' }}>
+            {renderPage()}
+          </Box>
         </Box>
-      </ThemeProvider>
+
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={3000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+
+        <Dialog open={clearDialogOpen} onClose={() => setClearDialogOpen(false)}>
+          <DialogTitle>Очистить все данные?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Это действие удалит все этапы сценария и сценарные объекты из localStorage.
+              Восстановить данные будет невозможно.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setClearDialogOpen(false)}>Отмена</Button>
+            <Button
+              onClick={handleClearAll}
+              color="error"
+              variant="contained"
+              startIcon={<ClearAllIcon />}
+            >
+              Очистить все
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
+    </ThemeProvider>
   );
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
     Card, CardHeader, CardContent, Stack, TextField, Divider, Typography,
-    Box, Chip, IconButton, Button, Alert
+    Box, Chip, IconButton, Button, Alert, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material';
 import { Delete as DeleteIcon } from '@mui/icons-material';
 
@@ -25,62 +25,42 @@ export const BlueprintEditor = ({
     const bp = blueprint;
 
     const handleAddMethod = () => {
-        // Защита от множественных вызовов
-        if (isAdding) {
-            console.log('⛔ Уже добавляем, игнорируем');
-            return;
-        }
-
+        if (isAdding) return;
         const name = methodName.trim();
         const description = methodDescription.trim();
-
-        console.log('🖱️ handleAddMethod ВЫЗВАН, имя:', name);
-
         if (!name) {
             setError('Имя метода не может быть пустым');
             return;
         }
-
         setIsAdding(true);
-
         try {
-            // ВЫЗЫВАЕМ ТОЛЬКО ОДИН РАЗ
-            console.log('📤 Вызываем onAddMethod...');
             const result = onAddMethod(name, description);
-            console.log('📤 Результат:', result);
-
             if (result && result.success === false) {
                 setError(result.error);
                 setIsAdding(false);
                 return;
             }
-
             setMethodName('');
             setMethodDescription('');
             setError(null);
             setSuccess('Метод успешно добавлен');
-
             setTimeout(() => {
                 setSuccess(null);
                 setIsAdding(false);
             }, 500);
         } catch (err) {
-            console.error('💥 Ошибка:', err);
             setError(err.message || 'Ошибка при добавлении метода');
             setIsAdding(false);
         }
     };
 
     const handleAddField = () => {
-        // Аналогичная защита для полей
         const input = document.getElementById('new-field-input');
         const value = input?.value?.trim() || '';
-
         if (!value) {
             setError('Имя сообщения не может быть пустым');
             return;
         }
-
         try {
             onAddField(value);
             if (input) input.value = '';
@@ -142,40 +122,50 @@ export const BlueprintEditor = ({
                                         <Box>
                                             <Typography variant="caption" color="text.secondary">Параметры:</Typography>
                                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                                                {method.parameters.map((p, pi) => (
-                                                    <Chip key={pi} label={p} size="small" />
-                                                ))}
+                                                {method.parameters.map((p, pi) => {
+                                                    const label = typeof p === 'string' ? p : `${p.name || 'Без имени'} (${p.type || 'string'})`;
+                                                    return <Chip key={pi} label={label} size="small" />;
+                                                })}
                                             </Box>
                                         </Box>
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                                             <TextField
                                                 size="small"
-                                                placeholder="Новый параметр"
-                                                id={`param-input-${idx}`}
-                                                sx={{ flex: 1, minWidth: 120 }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        const input = e.target;
-                                                        const val = input.value.trim();
-                                                        if (val) {
-                                                            const newParams = [...method.parameters, val];
-                                                            onUpdateMethodParameters(idx, newParams);
-                                                            input.value = '';
-                                                        }
-                                                    }
-                                                }}
+                                                placeholder="Имя параметра"
+                                                id={`param-name-${idx}`}
+                                                sx={{ flex: 1, minWidth: 80 }}
                                             />
+                                            <FormControl size="small" sx={{ minWidth: 120 }}>
+                                                <InputLabel id={`param-type-label-${idx}`}>Тип</InputLabel>
+                                                <Select
+                                                    labelId={`param-type-label-${idx}`}
+                                                    id={`param-type-${idx}`}
+                                                    defaultValue="string"
+                                                    label="Тип"
+                                                    size="small"
+                                                >
+                                                    <MenuItem value="string">Строка</MenuItem>
+                                                    <MenuItem value="number">Число</MenuItem>
+                                                    <MenuItem value="boolean">Булево</MenuItem>
+                                                    <MenuItem value="any">Любой</MenuItem>
+                                                </Select>
+                                            </FormControl>
                                             <Button
                                                 variant="outlined"
                                                 size="small"
                                                 onClick={() => {
-                                                    const input = document.getElementById(`param-input-${idx}`);
-                                                    const val = input.value.trim();
-                                                    if (val) {
-                                                        const newParams = [...method.parameters, val];
+                                                    const nameInput = document.getElementById(`param-name-${idx}`);
+                                                    const typeSelect = document.getElementById(`param-type-${idx}`);
+                                                    const name = nameInput.value.trim();
+                                                    const type = typeSelect.value;
+                                                    if (name) {
+                                                        const newParams = [...method.parameters, { name, type }];
                                                         onUpdateMethodParameters(idx, newParams);
-                                                        input.value = '';
+                                                        nameInput.value = '';
+                                                        // сброс select на 'string'
+                                                        typeSelect.value = 'string';
+                                                    } else {
+                                                        setError('Введите имя параметра');
                                                     }
                                                 }}
                                             >
