@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     Box, Stack, Chip, TextField, Button, Typography, Tooltip,
-    Autocomplete, IconButton
+    Autocomplete, IconButton, MenuItem, Select, FormControl, InputLabel
 } from '@mui/material';
 import { Add as AddIcon, Close as CloseIcon, Help as HelpIcon } from '@mui/icons-material';
 
@@ -49,7 +49,20 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
         const methodObj = methods.find(m => m.name === selectedMethod.name);
         let methodCall = `${selectedBlueprint.name}.${selectedMethod.name}`;
         if (methodObj && methodObj.parameters.length > 0) {
-            const values = paramValues.map(v => v.trim() || '""');
+            const values = paramValues.map(v => {
+                const trimmed = v.trim();
+                if (!trimmed) return '""';
+                // Проверяем, является ли значение числом
+                if (!isNaN(trimmed) && trimmed !== '') {
+                    return trimmed;
+                }
+                // Проверяем, является ли значение boolean
+                if (trimmed.toLowerCase() === 'true' || trimmed.toLowerCase() === 'false') {
+                    return trimmed.toLowerCase();
+                }
+                // Иначе строка в кавычках
+                return `"${trimmed}"`;
+            });
             methodCall += `(${values.join(', ')})`;
         } else {
             methodCall += '()';
@@ -71,6 +84,21 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
         addButton: 'Нажмите для добавления метода в список действий этапа. Метод будет выполняться при достижении данного этапа.'
     };
 
+    // Определение типа параметра по имени
+    const getParamType = (paramName) => {
+        const booleanParams = ['isActive', 'isEnabled', 'isValid', 'isComplete', 'success', 'status', 'hasError', 'isDeleted', 'isPublic'];
+        const numberParams = ['userId', 'count', 'limit', 'offset', 'ttl', 'timeout', 'retryCount', 'port', 'priority', 'maxRetries', 'index', 'page', 'size', 'total'];
+
+        if (booleanParams.some(p => paramName.toLowerCase().includes(p.toLowerCase()))) {
+            return 'boolean';
+        }
+        if (numberParams.some(p => paramName.toLowerCase().includes(p.toLowerCase()))) {
+            return 'number';
+        }
+        return 'string';
+    };
+
+    // Получение описания параметра
     const paramDescriptions = {
         'userId': 'Идентификатор пользователя в системе. Используется для персонализации и поиска данных конкретного пользователя.',
         'eventName': 'Название события для аналитики. Используется для отслеживания действий пользователя.',
@@ -99,9 +127,58 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
         'options': 'Дополнительные опции. Расширяет функциональность метода.'
     };
 
-    // Функция для получения описания параметра
     const getParamDescription = (paramName) => {
         return paramDescriptions[paramName] || `Параметр "${paramName}" - значение, передаваемое в метод.`;
+    };
+
+    // Компонент для поля ввода с валидацией типа
+    const ParamInput = ({ param, value, onChange, type }) => {
+        if (type === 'boolean') {
+            return (
+                <FormControl size="small" sx={{ width: 120 }}>
+                    <Select
+                        value={value || ''}
+                        onChange={(e) => onChange(e.target.value)}
+                        displayEmpty
+                    >
+                        <MenuItem value="">Выберите</MenuItem>
+                        <MenuItem value="true">True</MenuItem>
+                        <MenuItem value="false">False</MenuItem>
+                    </Select>
+                </FormControl>
+            );
+        }
+
+        if (type === 'number') {
+            return (
+                <TextField
+                    size="small"
+                    placeholder={param}
+                    value={value || ''}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || /^-?\d*\.?\d*$/.test(val)) {
+                            onChange(val);
+                        }
+                    }}
+                    sx={{ width: 120 }}
+                    inputProps={{
+                        inputMode: 'numeric',
+                        pattern: '[0-9]*'
+                    }}
+                />
+            );
+        }
+
+        return (
+            <TextField
+                size="small"
+                placeholder={param}
+                value={value || ''}
+                onChange={(e) => onChange(e.target.value)}
+                sx={{ width: 120 }}
+            />
+        );
     };
 
     return (
@@ -230,18 +307,32 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
                     }}>
                         {parameters.length > 0 && (
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
-                                {parameters.map((param, idx) => (
-                                    <Box key={idx} sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <TextField
-                                            size="small"
-                                            placeholder={param}
-                                            value={paramValues[idx] || ''}
-                                            onChange={(e) => handleParamChange(idx, e.target.value)}
-                                            sx={{ width: 120 }}
-                                        />
-
-                                    </Box>
-                                ))}
+                                {parameters.map((param, idx) => {
+                                    const paramType = getParamType(param);
+                                    return (
+                                        <Box key={idx} sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <ParamInput
+                                                param={param}
+                                                value={paramValues[idx] || ''}
+                                                onChange={(value) => handleParamChange(idx, value)}
+                                                type={paramType}
+                                            />
+                                            <Tooltip
+                                                title={getParamDescription(param)}
+                                                placement="top"
+                                                arrow
+                                                enterDelay={300}
+                                            >
+                                                <IconButton size="small" sx={{ color: 'text.secondary', ml: 0.5 }}>
+                                                    <HelpIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Typography variant="caption" sx={{ ml: 0.5, color: 'text.secondary', fontSize: 10 }}>
+                                                {paramType === 'boolean' ? 'bool' : paramType === 'number' ? 'num' : 'str'}
+                                            </Typography>
+                                        </Box>
+                                    );
+                                })}
                                 <Tooltip
                                     title={fieldDescriptions.parameters}
                                     placement="top"
