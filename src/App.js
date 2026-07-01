@@ -13,6 +13,7 @@ import { theme } from './components/common/Theme';
 import { SideMenu } from './components/menu/SideMenu';
 import { MainPage } from './components/pages/MainPage';
 import { ObjectsPage } from './components/pages/ObjectsPage';
+import { TreePage } from './components/pages/TreePage';
 import { useScenaryData } from './hooks/useScenaryData';
 
 function App() {
@@ -49,6 +50,13 @@ function App() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const fileInputRef = useRef(null);
+
+  const updateTransitionTasks = (index, newTasks) => {
+  if (index < 0 || index >= scenaryObjects.length) return;
+  const updated = [...scenaryObjects];
+  updated[index] = { ...updated[index], 'Transition Tasks': newTasks };
+  setScenaryObjects(updated);
+  };
 
   const handleImport = (e) => {
     const file = e.target.files[0];
@@ -149,6 +157,19 @@ function App() {
                 removeFieldFromBlueprint={removeFieldFromBlueprint}
                 selectBlueprint={selectBlueprint}
             />
+        );
+        case 'tree':
+        return (
+          <TreePage
+            scenaryObjects={scenaryObjects}
+            blueprints={blueprints}
+            addScenaryObject={addScenaryObject}
+            deleteScenaryObject={deleteScenaryObject}
+            updateScenaryObject={updateScenaryObject}
+            addListItem={addListItem}
+            removeListItem={removeListItem}
+            updateTransitionTasks={updateTransitionTasks} 
+          />
         );
       default:
         return (

@@ -16,6 +16,7 @@ import {
 const menuItems = [
     { id: 'main', label: 'Этапы сценария', icon: <HomeIcon /> },
     { id: 'objects', label: 'Сценарные объекты', icon: <AccountTreeIcon /> },
+    { id: 'tree', label: 'Посмотреть сценарий', icon: <AccountTreeIcon /> },
 ];
 
 export const SideMenu = ({ currentPage, onPageChange }) => {
