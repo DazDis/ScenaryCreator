@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import {
-    Box, Stack, Chip, TextField, Button, Autocomplete
+    Box, Stack, Chip, TextField, Button, Autocomplete, Tooltip, IconButton
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, Help as HelpIcon } from '@mui/icons-material';
 
 export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, stages }) => {
     const [selectedBlueprint, setSelectedBlueprint] = useState(null);
@@ -28,7 +28,6 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
         setSelectedStage(null);
     };
 
-    // Функция для красивого отображения перехода - ваш формат
     const formatTransition = (item) => {
         const parts = item.split('.');
         if (parts.length === 3) {
@@ -40,11 +39,17 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
         }
     };
 
-    // Создаем массив с названиями этапов для Autocomplete
     const stageOptions = stages.map((stage, index) => ({
         Name: stage.Name || `Этап ${index + 1}`,
         index: index
     }));
+
+    const fieldDescriptions = {
+        blueprint: 'Сценарный объект - содержит набор полей (сообщений). Выберите объект, в котором определено нужное сообщение.',
+        field: 'Сообщение - это поле сценарного объекта, которое используется для передачи данных между этапами.',
+        stage: 'Целевой этап - этап сценария, на который будет выполнен переход после завершения текущего этапа.',
+        addButton: 'Нажмите для добавления перехода на указанный этап. Переход будет выполнен после завершения текущего этапа.'
+    };
 
     return (
         <Box sx={{ mb: 2 }}>
@@ -64,75 +69,119 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
                         );
                     })}
                 </Box>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {/* Autocomplete для сценарных объектов */}
-                    <Autocomplete
-                        size="small"
-                        options={blueprints}
-                        getOptionLabel={(option) => option.name}
-                        value={selectedBlueprint}
-                        onChange={(event, newValue) => {
-                            setSelectedBlueprint(newValue);
-                            setSelectedField(null);
-                        }}
-                        sx={{ minWidth: 160, flex: 1 }}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Сценарный объект"
-                                placeholder="Поиск объекта..."
-                            />
-                        )}
-                        isOptionEqualToValue={(option, value) => option.name === value?.name}
-                        noOptionsText="Ничего не найдено"
-                    />
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 160 }}>
+                        <Autocomplete
+                            size="small"
+                            options={blueprints}
+                            getOptionLabel={(option) => option.name}
+                            value={selectedBlueprint}
+                            onChange={(event, newValue) => {
+                                setSelectedBlueprint(newValue);
+                                setSelectedField(null);
+                            }}
+                            sx={{ flex: 1 }}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Сценарный объект"
+                                    placeholder="Поиск объекта..."
+                                    size="small"
+                                />
+                            )}
+                            isOptionEqualToValue={(option, value) => option.name === value?.name}
+                            noOptionsText="Ничего не найдено"
+                        />
+                        <Tooltip
+                            title={fieldDescriptions.blueprint}
+                            placement="top"
+                            arrow
+                            enterDelay={300}
+                        >
+                            <IconButton size="small" sx={{ color: 'text.secondary', ml: 0.5 }}>
+                                <HelpIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
 
-                    {/* Autocomplete для сообщений */}
-                    <Autocomplete
-                        size="small"
-                        options={fields}
-                        value={selectedField}
-                        onChange={(event, newValue) => setSelectedField(newValue)}
-                        disabled={!selectedBlueprint}
-                        sx={{ minWidth: 160, flex: 1 }}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Сообщение"
-                                placeholder="Поиск сообщения..."
-                            />
-                        )}
-                        noOptionsText="Нет доступных сообщений"
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 160 }}>
+                        <Autocomplete
+                            size="small"
+                            options={fields}
+                            value={selectedField}
+                            onChange={(event, newValue) => setSelectedField(newValue)}
+                            disabled={!selectedBlueprint}
+                            sx={{ flex: 1 }}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Сообщение"
+                                    placeholder="Поиск сообщения..."
+                                    size="small"
+                                />
+                            )}
+                            noOptionsText="Нет доступных сообщений"
+                        />
+                        <Tooltip
+                            title={fieldDescriptions.field}
+                            placement="top"
+                            arrow
+                            enterDelay={300}
+                        >
+                            <IconButton size="small" sx={{ color: 'text.secondary', ml: 0.5 }}>
+                                <HelpIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
 
-                    {/* Autocomplete для этапов */}
-                    <Autocomplete
-                        size="small"
-                        options={stageOptions}
-                        getOptionLabel={(option) => option.Name}
-                        value={selectedStage}
-                        onChange={(event, newValue) => setSelectedStage(newValue)}
-                        disabled={stages.length === 0}
-                        sx={{ minWidth: 160, flex: 1 }}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Целевой этап"
-                                placeholder="Поиск этапа..."
-                            />
-                        )}
-                        isOptionEqualToValue={(option, value) => option.Name === value?.Name}
-                        noOptionsText="Нет доступных этапов"
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 160 }}>
+                        <Autocomplete
+                            size="small"
+                            options={stageOptions}
+                            getOptionLabel={(option) => option.Name}
+                            value={selectedStage}
+                            onChange={(event, newValue) => setSelectedStage(newValue)}
+                            disabled={stages.length === 0}
+                            sx={{ flex: 1 }}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Целевой этап"
+                                    placeholder="Поиск этапа..."
+                                    size="small"
+                                />
+                            )}
+                            isOptionEqualToValue={(option, value) => option.Name === value?.Name}
+                            noOptionsText="Нет доступных этапов"
+                        />
+                        <Tooltip
+                            title={fieldDescriptions.stage}
+                            placement="top"
+                            arrow
+                            enterDelay={300}
+                        >
+                            <IconButton size="small" sx={{ color: 'text.secondary', ml: 0.5 }}>
+                                <HelpIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
 
-                    <Button
-                        variant="contained"
-                        size="small"
-                        onClick={handleAdd}
-                        startIcon={<AddIcon />}
+                    <Tooltip
+                        title={fieldDescriptions.addButton}
+                        placement="top"
+                        arrow
+                        enterDelay={300}
                     >
-                        Добавить
-                    </Button>
+                        <Button
+                            variant="contained"
+                            size="small"
+                            onClick={handleAdd}
+                            startIcon={<AddIcon />}
+                            sx={{ flexShrink: 0 }}
+                        >
+                            Добавить
+                        </Button>
+                    </Tooltip>
                 </Box>
             </Stack>
         </Box>
