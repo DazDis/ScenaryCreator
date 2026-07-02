@@ -1,14 +1,135 @@
 import React, { useState } from 'react';
 import {
     Box, Stack, Chip, TextField, Button, Typography, Tooltip,
-    Autocomplete, IconButton, MenuItem, Select, FormControl, InputLabel
+    Autocomplete, IconButton, FormControl, InputLabel, Select, MenuItem,
+    FormHelperText, Alert, Paper
 } from '@mui/material';
 import { Add as AddIcon, Close as CloseIcon, Help as HelpIcon } from '@mui/icons-material';
+import { PARAM_TYPES, PARAM_TYPE_LABELS, PARAM_TYPE_ICONS } from '../common/Constants';
+
+// Функция валидации значения по типу
+const validateValue = (value, type) => {
+    if (value === '') return { valid: true, message: '' };
+
+    switch (type) {
+        case PARAM_TYPES.INT:
+            if (/^-?\d+$/.test(value.trim())) {
+                return { valid: true, message: '' };
+            }
+            return { valid: false, message: 'Введите целое число' };
+        case PARAM_TYPES.FLOAT:
+            if (/^-?\d*\.?\d+$/.test(value.trim())) {
+                return { valid: true, message: '' };
+            }
+            return { valid: false, message: 'Введите число' };
+        case PARAM_TYPES.BOOLEAN:
+            if (value === 'true' || value === 'false') {
+                return { valid: true, message: '' };
+            }
+            return { valid: false, message: 'Выберите true/false' };
+        case PARAM_TYPES.STRING:
+        default:
+            return { valid: true, message: '' };
+    }
+};
+
+// Компонент для ввода параметра - компактная версия
+const ParamInput = ({
+                        param,
+                        value,
+                        onChange,
+                        onFocus,
+                        onBlur,
+                        error,
+                        helperText
+                    }) => {
+    const [localValue, setLocalValue] = useState(value || '');
+    const [localError, setLocalError] = useState(null);
+    const [touched, setTouched] = useState(false);
+
+    const handleChange = (e) => {
+        const newValue = e.target.value;
+        setLocalValue(newValue);
+        setTouched(true);
+
+        const validation = validateValue(newValue, param.type);
+        if (validation.valid || newValue === '') {
+            setLocalError(null);
+            onChange(newValue, null);
+        } else {
+            setLocalError(validation.message);
+            onChange(newValue, validation.message);
+        }
+    };
+
+    const handleBlur = (e) => {
+        setTouched(true);
+        const validation = validateValue(localValue, param.type);
+        if (!validation.valid && localValue !== '') {
+            setLocalError(validation.message);
+            onBlur?.(validation.message);
+        } else {
+            setLocalError(null);
+            onBlur?.(null);
+        }
+    };
+
+    // Для Boolean - компактный Select
+    if (param.type === 'Boolean') {
+        return (
+            <FormControl size="small" sx={{ minWidth: 120 }} error={!!(error || localError)}>
+                <Select
+                    value={localValue}
+                    onChange={(e) => {
+                        const newValue = e.target.value;
+                        setLocalValue(newValue);
+                        setTouched(true);
+                        setLocalError(null);
+                        onChange(newValue, null);
+                    }}
+                    onBlur={handleBlur}
+                    displayEmpty
+                    size="small"
+                >
+                    <MenuItem value="">Выберите</MenuItem>
+                    <MenuItem value="true">true</MenuItem>
+                    <MenuItem value="false">false</MenuItem>
+                </Select>
+                {(error || localError) && (
+                    <FormHelperText>{error || localError}</FormHelperText>
+                )}
+            </FormControl>
+        );
+    }
+
+    return (
+        <TextField
+            size="small"
+            placeholder={param.name}
+            value={localValue}
+            onChange={handleChange}
+            onFocus={onFocus}
+            onBlur={handleBlur}
+            sx={{ minWidth: 120 }}
+            error={!!(error || localError)}
+            helperText={error || localError || ''}
+            InputProps={{
+                startAdornment: (
+                    <Typography variant="caption" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '10px' }}>
+                        {PARAM_TYPE_ICONS[param.type]}
+                    </Typography>
+                )
+            }}
+        />
+    );
+};
 
 export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => {
     const [selectedBlueprint, setSelectedBlueprint] = useState(null);
     const [selectedMethod, setSelectedMethod] = useState(null);
     const [paramValues, setParamValues] = useState([]);
+    const [validationErrors, setValidationErrors] = useState({});
+    const [error, setError] = useState(null);
 
     const selectedBlueprintObj = blueprints.find(b => b.name === selectedBlueprint?.name);
     const methods = selectedBlueprintObj ? selectedBlueprintObj.methods : [];
@@ -17,12 +138,15 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
 
     const resetParamValues = (paramsCount) => {
         setParamValues(Array(paramsCount).fill(''));
+        setValidationErrors({});
     };
 
     const handleBlueprintChange = (newValue) => {
         setSelectedBlueprint(newValue);
         setSelectedMethod(null);
         setParamValues([]);
+        setValidationErrors({});
+        setError(null);
     };
 
     const handleMethodChange = (newValue) => {
@@ -33,158 +157,121 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
         } else {
             setParamValues([]);
         }
+        setError(null);
     };
 
-    const handleParamChange = (idx, value) => {
+    const handleParamChange = (idx, value, errorMsg) => {
         const newVals = [...paramValues];
         newVals[idx] = value;
         setParamValues(newVals);
+
+        const newErrors = { ...validationErrors };
+        if (errorMsg) {
+            newErrors[idx] = errorMsg;
+        } else {
+            delete newErrors[idx];
+        }
+        setValidationErrors(newErrors);
+    };
+
+    const handleParamBlur = (idx, errorMsg) => {
+        if (errorMsg) {
+            setValidationErrors(prev => ({
+                ...prev,
+                [idx]: errorMsg
+            }));
+        } else {
+            const newErrors = { ...validationErrors };
+            delete newErrors[idx];
+            setValidationErrors(newErrors);
+        }
     };
 
     const handleAdd = () => {
         if (!selectedBlueprint || !selectedMethod) {
-            alert('Выберите сценарный объект и метод');
+            setError('Выберите сценарный объект и метод');
             return;
         }
-        const methodObj = methods.find(m => m.name === selectedMethod.name);
+
+        const paramObj = methods.find(m => m.name === selectedMethod.name);
+        if (paramObj && paramObj.parameters.length > 0) {
+            let hasError = false;
+            const errors = {};
+
+            paramObj.parameters.forEach((param, idx) => {
+                const value = paramValues[idx] || '';
+
+                if (value === '') {
+                    errors[idx] = '⚠️ Параметр не может быть пустым';
+                    hasError = true;
+                    return;
+                }
+
+                let validationError = '';
+                if (param.type === 'Int' && !/^-?\d+$/.test(value.trim())) {
+                    validationError = '⚠️ Введите целое число';
+                } else if (param.type === 'Float' && !/^-?\d*\.?\d+$/.test(value.trim())) {
+                    validationError = '⚠️ Введите число';
+                } else if (param.type === 'Boolean' && !['true', 'false'].includes(value.trim().toLowerCase())) {
+                    validationError = '⚠️ Выберите true/false';
+                }
+
+                if (validationError) {
+                    errors[idx] = validationError;
+                    hasError = true;
+                }
+            });
+
+            if (hasError) {
+                setValidationErrors(errors);
+                setError('❌ Заполните все параметры корректно');
+                return;
+            }
+        }
+
         let methodCall = `${selectedBlueprint.name}.${selectedMethod.name}`;
-        if (methodObj && methodObj.parameters.length > 0) {
+        if (paramObj && paramObj.parameters.length > 0) {
             const values = paramValues.map(v => {
                 const trimmed = v.trim();
-                if (!trimmed) return '""';
-                // Проверяем, является ли значение числом
-                if (!isNaN(trimmed) && trimmed !== '') {
-                    return trimmed;
-                }
-                // Проверяем, является ли значение boolean
-                if (trimmed.toLowerCase() === 'true' || trimmed.toLowerCase() === 'false') {
-                    return trimmed.toLowerCase();
-                }
-                // Иначе строка в кавычках
+                if (!isNaN(trimmed) && trimmed !== '') return trimmed;
+                if (trimmed === 'true' || trimmed === 'false') return trimmed;
                 return `"${trimmed}"`;
             });
             methodCall += `(${values.join(', ')})`;
         } else {
             methodCall += '()';
         }
+
         if (items.includes(methodCall)) {
-            alert('Этот вызов уже добавлен');
+            setError('Этот вызов уже добавлен');
             return;
         }
+
         onAddItem(methodCall);
         setSelectedBlueprint(null);
         setSelectedMethod(null);
         setParamValues([]);
+        setValidationErrors({});
+        setError(null);
     };
 
     const fieldDescriptions = {
-        blueprint: 'Сценарный объект - это контейнер, содержащий набор методов. Выберите объект, к которому относится вызываемый метод.',
-        method: 'Метод - это функция, выполняющая определенное действие в рамках выбранного сценарного объекта.',
-        parameters: 'Параметры - это значения, передаваемые в метод. Заполните их в соответствии с ожидаемыми типами данных метода.',
-        addButton: 'Нажмите для добавления метода в список действий этапа. Метод будет выполняться при достижении данного этапа.'
-    };
-
-    // Определение типа параметра по имени
-    const getParamType = (paramName) => {
-        const booleanParams = ['isActive', 'isEnabled', 'isValid', 'isComplete', 'success', 'status', 'hasError', 'isDeleted', 'isPublic'];
-        const numberParams = ['userId', 'count', 'limit', 'offset', 'ttl', 'timeout', 'retryCount', 'port', 'priority', 'maxRetries', 'index', 'page', 'size', 'total'];
-
-        if (booleanParams.some(p => paramName.toLowerCase().includes(p.toLowerCase()))) {
-            return 'boolean';
-        }
-        if (numberParams.some(p => paramName.toLowerCase().includes(p.toLowerCase()))) {
-            return 'number';
-        }
-        return 'string';
-    };
-
-    // Получение описания параметра
-    const paramDescriptions = {
-        'userId': 'Идентификатор пользователя в системе. Используется для персонализации и поиска данных конкретного пользователя.',
-        'eventName': 'Название события для аналитики. Используется для отслеживания действий пользователя.',
-        'eventType': 'Тип события: клик, просмотр, отправка формы и т.д. Определяет категорию аналитического события.',
-        'properties': 'Объект с дополнительными свойствами события. Содержит метаданные о событии.',
-        'data': 'Данные для обработки. Может содержать любую структуру в зависимости от метода.',
-        'requestId': 'Уникальный идентификатор запроса. Используется для отслеживания и логирования.',
-        'status': 'Статус операции: success, error, pending. Определяет результат выполнения.',
-        'message': 'Текстовое сообщение. Используется для уведомлений и логирования.',
-        'payload': 'Данные для отправки. Содержит основную информацию для передачи.',
-        'deviceToken': 'Токен устройства для push-уведомлений. Идентифицирует устройство получателя.',
-        'notificationId': 'Идентификатор уведомления. Используется для отслеживания статуса доставки.',
-        'recipientId': 'Идентификатор получателя. Определяет кому адресовано уведомление или сообщение.',
-        'content': 'Содержимое уведомления или сообщения. Основной текст для отображения.',
-        'reportId': 'Идентификатор отчета. Используется для сохранения и получения отчетов.',
-        'widgets': 'Данные для обновления виджетов. Содержит информацию для отображения на дашборде.',
-        'limit': 'Лимит количества записей. Ограничивает объем возвращаемых данных.',
-        'offset': 'Смещение для пагинации. Определяет с какой записи начинать выборку.',
-        'filter': 'Фильтр для данных. Используется для уточнения выборки.',
-        'sort': 'Параметры сортировки. Определяет порядок возвращаемых данных.',
-        'userIdData': 'Данные пользователя. Содержит информацию о пользователе для кэширования.',
-        'key': 'Ключ для кэша. Уникальный идентификатор для хранения данных.',
-        'value': 'Значение для кэша. Данные для сохранения в кэше.',
-        'ttl': 'Время жизни кэша в секундах. Определяет срок актуальности данных.',
-        'config': 'Конфигурация. Содержит настройки для выполнения операции.',
-        'options': 'Дополнительные опции. Расширяет функциональность метода.'
-    };
-
-    const getParamDescription = (paramName) => {
-        return paramDescriptions[paramName] || `Параметр "${paramName}" - значение, передаваемое в метод.`;
-    };
-
-    // Компонент для поля ввода с валидацией типа
-    const ParamInput = ({ param, value, onChange, type }) => {
-        if (type === 'boolean') {
-            return (
-                <FormControl size="small" sx={{ width: 120 }}>
-                    <Select
-                        value={value || ''}
-                        onChange={(e) => onChange(e.target.value)}
-                        displayEmpty
-                    >
-                        <MenuItem value="">Выберите</MenuItem>
-                        <MenuItem value="true">True</MenuItem>
-                        <MenuItem value="false">False</MenuItem>
-                    </Select>
-                </FormControl>
-            );
-        }
-
-        if (type === 'number') {
-            return (
-                <TextField
-                    size="small"
-                    placeholder={param}
-                    value={value || ''}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '' || /^-?\d*\.?\d*$/.test(val)) {
-                            onChange(val);
-                        }
-                    }}
-                    sx={{ width: 120 }}
-                    inputProps={{
-                        inputMode: 'numeric',
-                        pattern: '[0-9]*'
-                    }}
-                />
-            );
-        }
-
-        return (
-            <TextField
-                size="small"
-                placeholder={param}
-                value={value || ''}
-                onChange={(e) => onChange(e.target.value)}
-                sx={{ width: 120 }}
-            />
-        );
+        blueprint: 'Сценарный объект - это контейнер, содержащий набор методов.',
+        method: 'Метод - это функция, выполняющая определенное действие.',
+        parameters: 'Параметры - значения, передаваемые в метод.',
+        addButton: 'Нажмите для добавления метода в список действий.'
     };
 
     return (
         <Box sx={{ mb: 2 }}>
-            <Stack spacing={1}>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            <Stack spacing={1.5}>
+                {error && (
+                    <Alert severity="error" onClose={() => setError(null)} size="small">
+                        {error}
+                    </Alert>
+                )}
+
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {items.map((item, idx) => (
                         <Chip
                             key={idx}
@@ -194,61 +281,32 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
                             size="small"
                             color="primary"
                             variant="outlined"
-                            sx={{
-                                '& .MuiChip-deleteIcon': {
-                                    color: 'primary.main',
-                                    '&:hover': {
-                                        color: 'error.main',
-                                    },
-                                },
-                            }}
                         />
                     ))}
                 </Box>
 
-                <Box sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1
-                }}>
-                    <Box sx={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: 1,
-                        alignItems: 'center'
-                    }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 180 }}>
+                <Stack spacing={1}>
+                    {/* Выбор объекта и метода в одну строку */}
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <Box sx={{ flex: 1 }}>
                             <Autocomplete
                                 size="small"
                                 options={blueprints}
                                 getOptionLabel={(option) => option.name}
                                 value={selectedBlueprint}
                                 onChange={(event, newValue) => handleBlueprintChange(newValue)}
-                                sx={{ flex: 1 }}
                                 renderInput={(params) => (
                                     <TextField
                                         {...params}
                                         label="Сценарный объект"
-                                        placeholder="Поиск объекта..."
+                                        placeholder="Поиск..."
                                         size="small"
                                     />
                                 )}
                                 isOptionEqualToValue={(option, value) => option.name === value?.name}
-                                noOptionsText="Ничего не найдено"
                             />
-                            <Tooltip
-                                title={fieldDescriptions.blueprint}
-                                placement="top"
-                                arrow
-                                enterDelay={300}
-                            >
-                                <IconButton size="small" sx={{ color: 'text.secondary', ml: 0.5 }}>
-                                    <HelpIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
                         </Box>
-
-                        <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 180 }}>
+                        <Box sx={{ flex: 1 }}>
                             <Autocomplete
                                 size="small"
                                 options={methods}
@@ -256,114 +314,65 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
                                 value={selectedMethod}
                                 onChange={(event, newValue) => handleMethodChange(newValue)}
                                 disabled={!selectedBlueprint}
-                                sx={{ flex: 1 }}
                                 renderInput={(params) => (
                                     <TextField
                                         {...params}
                                         label="Метод"
-                                        placeholder="Поиск метода..."
+                                        placeholder="Поиск..."
                                         size="small"
                                     />
                                 )}
                                 isOptionEqualToValue={(option, value) => option.name === value?.name}
-                                noOptionsText="Нет доступных методов"
-                                renderOption={(props, option) => (
-                                    <li {...props}>
-                                        <Tooltip
-                                            title={option.description || 'Нет описания'}
-                                            placement="right"
-                                            arrow
-                                        >
-                                            <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                                                <Typography variant="body2">{option.name}</Typography>
-                                                {option.description && (
-                                                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                                        {option.description.length > 50 ? option.description.substring(0, 50) + '...' : option.description}
-                                                    </Typography>
-                                                )}
-                                            </Box>
-                                        </Tooltip>
-                                    </li>
-                                )}
                             />
-                            <Tooltip
-                                title={fieldDescriptions.method}
-                                placement="top"
-                                arrow
-                                enterDelay={300}
-                            >
-                                <IconButton size="small" sx={{ color: 'text.secondary', ml: 0.5 }}>
-                                    <HelpIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
                         </Box>
                     </Box>
 
-                    <Box sx={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: 1,
-                        alignItems: 'center'
-                    }}>
-                        {parameters.length > 0 && (
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
-                                {parameters.map((param, idx) => {
-                                    const paramType = getParamType(param);
-                                    return (
-                                        <Box key={idx} sx={{ display: 'flex', alignItems: 'center' }}>
-                                            <ParamInput
-                                                param={param}
-                                                value={paramValues[idx] || ''}
-                                                onChange={(value) => handleParamChange(idx, value)}
-                                                type={paramType}
-                                            />
-                                            <Tooltip
-                                                title={getParamDescription(param)}
-                                                placement="top"
-                                                arrow
-                                                enterDelay={300}
-                                            >
-                                                <IconButton size="small" sx={{ color: 'text.secondary', ml: 0.5 }}>
-                                                    <HelpIcon fontSize="small" />
-                                                </IconButton>
+                    {/* Параметры в компактном виде */}
+                    {parameters.length > 0 && (
+                        <Paper variant="outlined" sx={{ p: 1, bgcolor: 'background.default' }}>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5, fontWeight: 'bold' }}>
+                                    Параметры:
+                                </Typography>
+                                {parameters.map((param, idx) => (
+                                    <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <ParamInput
+                                            param={param}
+                                            value={paramValues[idx] || ''}
+                                            onChange={(value, errorMsg) => handleParamChange(idx, value, errorMsg)}
+                                            onFocus={() => {
+                                                const newErrors = { ...validationErrors };
+                                                delete newErrors[idx];
+                                                setValidationErrors(newErrors);
+                                            }}
+                                            onBlur={(errorMsg) => handleParamBlur(idx, errorMsg)}
+                                            error={validationErrors[idx]}
+                                        />
+                                        {validationErrors[idx] && (
+                                            <Tooltip title={validationErrors[idx]}>
+                                                <Typography variant="caption" color="error" sx={{ fontSize: '10px' }}>
+                                                    ⚠️
+                                                </Typography>
                                             </Tooltip>
-                                            <Typography variant="caption" sx={{ ml: 0.5, color: 'text.secondary', fontSize: 10 }}>
-                                                {paramType === 'boolean' ? 'bool' : paramType === 'number' ? 'num' : 'str'}
-                                            </Typography>
-                                        </Box>
-                                    );
-                                })}
-                                <Tooltip
-                                    title={fieldDescriptions.parameters}
-                                    placement="top"
-                                    arrow
-                                    enterDelay={300}
-                                >
-                                    <IconButton size="small" sx={{ color: 'text.secondary' }}>
-                                        <HelpIcon fontSize="small" />
-                                    </IconButton>
-                                </Tooltip>
+                                        )}
+                                    </Box>
+                                ))}
                             </Box>
-                        )}
+                        </Paper>
+                    )}
 
-                        <Tooltip
-                            title={fieldDescriptions.addButton}
-                            placement="top"
-                            arrow
-                            enterDelay={300}
+                    {/* Кнопка добавления */}
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button
+                            variant="contained"
+                            size="small"
+                            onClick={handleAdd}
+                            startIcon={<AddIcon />}
                         >
-                            <Button
-                                variant="contained"
-                                size="small"
-                                onClick={handleAdd}
-                                startIcon={<AddIcon />}
-                                sx={{ flexShrink: 0 }}
-                            >
-                                Добавить
-                            </Button>
-                        </Tooltip>
+                            Добавить метод
+                        </Button>
                     </Box>
-                </Box>
+                </Stack>
             </Stack>
         </Box>
     );

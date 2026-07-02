@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import {
-    Box, Stack, Chip, TextField, Button, Autocomplete, Tooltip, IconButton,
-    Paper, Typography
+    Box, Stack, Chip, TextField, Button, Autocomplete, Tooltip, IconButton
 } from '@mui/material';
-import { Add as AddIcon, Help as HelpIcon, ArrowForward as ArrowForwardIcon } from '@mui/icons-material';
+import { Add as AddIcon, Help as HelpIcon } from '@mui/icons-material';
 
 export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, stages }) => {
     const [selectedBlueprint, setSelectedBlueprint] = useState(null);
@@ -32,7 +31,7 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
     const formatTransition = (item) => {
         const parts = item.split('.');
         if (parts.length === 3) {
-            return `По сообщению "${parts[0]} =>"${parts[1]}";" Переход на этап '${parts[2]}'`;
+            return `${parts[0]} =>"${parts[1]}"; => '${parts[2]}'`;
         } else if (parts.length === 2) {
             return `${parts[0]}=>"${parts[1]}";`;
         } else {
@@ -50,51 +49,6 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
         field: 'Сообщение - это поле сценарного объекта, которое используется для передачи данных между этапами.',
         stage: 'Целевой этап - этап сценария, на который будет выполнен переход после завершения текущего этапа.',
         addButton: 'Нажмите для добавления перехода на указанный этап. Переход будет выполнен после завершения текущего этапа.'
-    };
-
-    // Визуализация текущего выбора
-    const renderTransitionPreview = () => {
-        const hasSelection = selectedBlueprint && selectedField && selectedStage;
-        return (
-            <Paper
-                variant="outlined"
-                sx={{
-                    p: 1.5,
-                    mt: 1,
-                    mb: 1,
-                    bgcolor: hasSelection ? 'success.light' : 'action.hover',
-                    borderColor: hasSelection ? 'success.main' : 'divider',
-                    transition: 'all 0.3s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 2,
-                    minHeight: 48
-                }}
-            >
-                {hasSelection ? (
-                    <>
-                        <Typography variant="body1" fontWeight="bold" sx={{ color: 'success.dark' }}>
-                            {selectedBlueprint.name}
-                        </Typography>
-                        <ArrowForwardIcon sx={{ color: 'success.main' }} />
-                        <Typography variant="body1" fontWeight="bold" sx={{ color: 'success.dark' }}>
-                            {selectedField}
-                        </Typography>
-                        <ArrowForwardIcon sx={{ color: 'success.main' }} />
-                        <Typography variant="body1" fontWeight="bold" sx={{ color: 'success.dark' }}>
-                            {selectedStage.Name}
-                        </Typography>
-                    </>
-                ) : (
-                    <Typography variant="body2" color="text.secondary">
-                        {!selectedBlueprint ? 'Выберите сценарный объект' :
-                            !selectedField ? 'Выберите сообщение' :
-                                'Выберите целевой этап'}
-                    </Typography>
-                )}
-            </Paper>
-        );
     };
 
     return (
@@ -115,9 +69,6 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
                         );
                     })}
                 </Box>
-
-                {renderTransitionPreview()}
-
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 160 }}>
                         <Autocomplete
@@ -228,7 +179,7 @@ export const TransitionPicker = ({ items, onAddItem, onRemoveItem, blueprints, s
                             startIcon={<AddIcon />}
                             sx={{ flexShrink: 0 }}
                         >
-                            Добавить переход
+                            Добавить
                         </Button>
                     </Tooltip>
                 </Box>

@@ -42,9 +42,10 @@ export const useScenaryData = () => {
 
     // ---- Операции со сценарными объектами (этапами) ----
     const addScenaryObject = useCallback(() => {
-        const newObj = createEmptyScenaryObject();
+        const newIndex = scenaryObjects.length;
+        const newObj = createEmptyScenaryObject(newIndex);
         setScenaryObjects(prev => [...prev, newObj]);
-        setSelectedIndex(scenaryObjects.length);
+        setSelectedIndex(newIndex);
         setSelectedBlueprintIndex(null);
     }, [scenaryObjects.length]);
 
@@ -175,6 +176,7 @@ export const useScenaryData = () => {
 
         return { success: true };
     }, [selectedBlueprintIndex, blueprints]);
+
     const updateListItem = useCallback((listKey, itemIndex, newValue) => {
         if (selectedIndex === null) return;
         setScenaryObjects(prev => {

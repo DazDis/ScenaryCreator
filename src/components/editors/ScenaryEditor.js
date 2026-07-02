@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Card, CardHeader, CardContent, Stack, TextField, Divider, Typography,
     Box, Paper, IconButton, Button, Dialog, DialogTitle, DialogContent,
-    DialogActions, Collapse, Tooltip, MenuItem, Select, FormControl, InputLabel
+    DialogActions, Collapse, Tooltip, MenuItem, Select, FormControl, InputLabel,
+    FormHelperText
 } from '@mui/material';
 import {
     Edit as EditIcon,
@@ -13,7 +14,35 @@ import {
 } from '@mui/icons-material';
 import { MethodPicker } from '../pickers/MethodPicker';
 import { TransitionPicker } from '../pickers/TransitionPicker';
+import { PARAM_TYPE_LABELS, PARAM_TYPE_ICONS } from '../common/Constants';
 
+// ---- Функция форматирования перехода для отображения ----
+const formatTransitionDisplay = (item) => {
+    const parts = item.split('.');
+    if (parts.length === 3) {
+        return `${parts[0]} => "${parts[1]}"; => '${parts[2]}'`;
+    } else if (parts.length === 2) {
+        return `${parts[0]} => "${parts[1]}";`;
+    } else {
+        return item;
+    }
+};
+
+// ---- Функция форматирования метода для отображения ----
+const formatMethodDisplay = (item) => {
+    const parts = item.split('.');
+    if (parts.length >= 2) {
+        const methodPart = parts.slice(1).join('.');
+        // Если есть параметры в скобках
+        if (methodPart.includes('(')) {
+            return `${parts[0]}.${methodPart}`;
+        }
+        return `${parts[0]}.${methodPart}()`;
+    }
+    return item;
+};
+
+// ---- MethodList компонент - для отображения списков методов и переходов ----
 const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListItem, blueprints, stages }) => {
     const [editIndex, setEditIndex] = useState(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -24,10 +53,41 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
     const [editMethod, setEditMethod] = useState('');
     const [editParams, setEditParams] = useState([]);
     const [editStage, setEditStage] = useState('');
+    const [paramErrors, setParamErrors] = useState({});
+
+    // Функция валидации параметра
+    const validateParam = (value, type) => {
+        if (value === '') return { valid: false, message: 'Параметр не может быть пустым' };
+
+        switch (type) {
+            case 'Int':
+                if (/^-?\d+$/.test(value.trim())) {
+                    return { valid: true, message: '' };
+                }
+                return { valid: false, message: '⚠️ Введите целое число' };
+            case 'Float':
+                if (/^-?\d*\.?\d+$/.test(value.trim())) {
+                    return { valid: true, message: '' };
+                }
+                return { valid: false, message: '⚠️ Введите число' };
+            case 'Boolean':
+                if (value === 'true' || value === 'false') {
+                    return { valid: true, message: '' };
+                }
+                return { valid: false, message: '⚠️ Выберите true или false' };
+            case 'String':
+            default:
+                if (value.trim().length > 0) {
+                    return { valid: true, message: '' };
+                }
+                return { valid: false, message: 'Параметр не может быть пустым' };
+        }
+    };
 
     const handleEdit = (index) => {
         const item = items[index];
         setEditIndex(index);
+        setParamErrors({});
 
         // Разбираем строку метода
         const parts = item.split('.');
@@ -57,6 +117,23 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
         setEditDialogOpen(true);
     };
 
+    const handleParamChange = (idx, value) => {
+        const newParams = [...editParams];
+        newParams[idx] = value;
+        setEditParams(newParams);
+
+        // Валидация при вводе
+        const blueprintObj = blueprints.find(b => b.name === editBlueprint);
+        const methodObj = blueprintObj?.methods.find(m => m.name === editMethod);
+        if (methodObj && methodObj.parameters[idx]) {
+            const validation = validateParam(value, methodObj.parameters[idx].type);
+            setParamErrors(prev => ({
+                ...prev,
+                [idx]: validation.valid ? '' : validation.message
+            }));
+        }
+    };
+
     const handleSaveEdit = () => {
         if (editIndex !== null) {
             let newValue = '';
@@ -71,11 +148,49 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
                     return;
                 }
             } else {
-                // Это метод
+                // Это метод - проверяем валидацию параметров
                 if (editBlueprint && editMethod) {
+                    // Получаем объект с методами
+                    const blueprintObj = blueprints.find(b => b.name === editBlueprint);
+                    const methodObj = blueprintObj?.methods.find(m => m.name === editMethod);
+
+                    // Проверяем все параметры
+                    let hasError = false;
+                    const errors = {};
+
+                    if (methodObj && methodObj.parameters.length > 0) {
+                        methodObj.parameters.forEach((param, idx) => {
+                            const value = editParams[idx] || '';
+                            const validation = validateParam(value, param.type);
+                            if (!validation.valid) {
+                                errors[idx] = validation.message;
+                                hasError = true;
+                            }
+                        });
+                    }
+
+                    if (hasError) {
+                        setParamErrors(errors);
+                        alert('Исправьте ошибки в параметрах');
+                        return;
+                    }
+
+                    // Формируем строку метода
                     newValue = `${editBlueprint}.${editMethod}`;
                     if (editParams.length > 0) {
-                        const paramsStr = editParams.map(p => `"${p.trim()}"`).join(', ');
+                        const paramsStr = editParams.map(p => {
+                            const trimmed = p.trim();
+                            // Для чисел не добавляем кавычки
+                            if (!isNaN(trimmed) && trimmed !== '') {
+                                return trimmed;
+                            }
+                            // Для boolean
+                            if (trimmed === 'true' || trimmed === 'false') {
+                                return trimmed;
+                            }
+                            // Для остальных - с кавычками
+                            return `"${trimmed}"`;
+                        }).join(', ');
                         newValue += `(${paramsStr})`;
                     } else {
                         newValue += '()';
@@ -93,6 +208,7 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
             setEditMethod('');
             setEditParams([]);
             setEditStage('');
+            setParamErrors({});
         }
     };
 
@@ -103,6 +219,7 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
         setEditMethod('');
         setEditParams([]);
         setEditStage('');
+        setParamErrors({});
     };
 
     // Получаем методы для выбранного объекта
@@ -117,12 +234,21 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
     const methodParams = selectedMethodObj ? selectedMethodObj.parameters : [];
 
     // Обновляем параметры при выборе метода
-    React.useEffect(() => {
+    useEffect(() => {
         if (selectedMethodObj) {
             const paramCount = selectedMethodObj.parameters.length;
-            if (editParams.length !== paramCount) {
+            if (editParams.length === 0) {
                 setEditParams(Array(paramCount).fill(''));
+            } else if (editParams.length !== paramCount) {
+                const newParams = [...editParams];
+                if (paramCount > editParams.length) {
+                    newParams.push(...Array(paramCount - editParams.length).fill(''));
+                } else {
+                    newParams.splice(paramCount);
+                }
+                setEditParams(newParams);
             }
+            setParamErrors({});
         }
     }, [editMethod, selectedMethodObj]);
 
@@ -197,53 +323,63 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
                                     Нет добавленных элементов
                                 </Typography>
                             ) : (
-                                items.map((item, idx) => (
-                                    <Box
-                                        key={idx}
-                                        sx={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            p: 1,
-                                            bgcolor: 'background.paper',
-                                            borderRadius: 1,
-                                            border: '1px solid',
-                                            borderColor: 'divider',
-                                            '&:hover': {
-                                                bgcolor: 'action.hover',
-                                            }
-                                        }}
-                                    >
-                                        <Typography
-                                            variant="body2"
+                                items.map((item, idx) => {
+                                    // Форматируем отображение в зависимости от типа списка
+                                    let displayText = item;
+                                    if (listKey === 'Transition Tasks') {
+                                        displayText = formatTransitionDisplay(item);
+                                    } else {
+                                        displayText = formatMethodDisplay(item);
+                                    }
+
+                                    return (
+                                        <Box
+                                            key={idx}
                                             sx={{
-                                                fontFamily: 'monospace',
-                                                fontSize: 13,
-                                                flex: 1,
-                                                wordBreak: 'break-word',
-                                                mr: 1
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                p: 1,
+                                                bgcolor: 'background.paper',
+                                                borderRadius: 1,
+                                                border: '1px solid',
+                                                borderColor: 'divider',
+                                                '&:hover': {
+                                                    bgcolor: 'action.hover',
+                                                }
                                             }}
                                         >
-                                            {item}
-                                        </Typography>
-                                        <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => handleEdit(idx)}
-                                                sx={{ fontSize: 16 }}
+                                            <Typography
+                                                variant="body2"
+                                                sx={{
+                                                    fontFamily: 'monospace',
+                                                    fontSize: 13,
+                                                    flex: 1,
+                                                    wordBreak: 'break-word',
+                                                    mr: 1
+                                                }}
                                             >
-                                                <EditIcon fontSize="small" />
-                                            </IconButton>
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => onRemove(idx)}
-                                                sx={{ fontSize: 16, color: 'error.main' }}
-                                            >
-                                                <CloseIcon fontSize="small" />
-                                            </IconButton>
+                                                {displayText}
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => handleEdit(idx)}
+                                                    sx={{ fontSize: 16 }}
+                                                >
+                                                    <EditIcon fontSize="small" />
+                                                </IconButton>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => onRemove(idx)}
+                                                    sx={{ fontSize: 16, color: 'error.main' }}
+                                                >
+                                                    <CloseIcon fontSize="small" />
+                                                </IconButton>
+                                            </Box>
                                         </Box>
-                                    </Box>
-                                ))
+                                    );
+                                })
                             )}
                         </Box>
                     </Paper>
@@ -265,6 +401,7 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
                                     setEditBlueprint(e.target.value);
                                     setEditMethod('');
                                     setEditParams([]);
+                                    setParamErrors({});
                                 }}
                                 label="Сценарный объект"
                             >
@@ -322,8 +459,16 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
                                             setEditMethod(e.target.value);
                                             const method = methods.find(m => m.name === e.target.value);
                                             if (method) {
-                                                setEditParams(Array(method.parameters.length).fill(''));
+                                                const oldParams = [...editParams];
+                                                const newParams = Array(method.parameters.length).fill('');
+                                                method.parameters.forEach((param, idx) => {
+                                                    if (idx < oldParams.length && oldParams[idx] !== undefined) {
+                                                        newParams[idx] = oldParams[idx];
+                                                    }
+                                                });
+                                                setEditParams(newParams);
                                             }
+                                            setParamErrors({});
                                         }}
                                         label="Метод"
                                         disabled={!editBlueprint}
@@ -343,21 +488,43 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
                                             Параметры:
                                         </Typography>
                                         <Stack spacing={1}>
-                                            {methodParams.map((param, idx) => (
-                                                <TextField
-                                                    key={idx}
-                                                    size="small"
-                                                    label={param}
-                                                    value={editParams[idx] || ''}
-                                                    onChange={(e) => {
-                                                        const newParams = [...editParams];
-                                                        newParams[idx] = e.target.value;
-                                                        setEditParams(newParams);
-                                                    }}
-                                                    fullWidth
-                                                    placeholder={`Введите значение для ${param}`}
-                                                />
-                                            ))}
+                                            {methodParams.map((param, idx) => {
+                                                if (param.type === 'Boolean') {
+                                                    return (
+                                                        <FormControl key={idx} fullWidth size="small" error={!!paramErrors[idx]}>
+                                                            <InputLabel>{`${PARAM_TYPE_ICONS[param.type] || '📌'} ${param.name}`}</InputLabel>
+                                                            <Select
+                                                                value={editParams[idx] || ''}
+                                                                onChange={(e) => handleParamChange(idx, e.target.value)}
+                                                                label={`${PARAM_TYPE_ICONS[param.type] || '📌'} ${param.name}`}
+                                                            >
+                                                                <MenuItem value="">Выберите значение</MenuItem>
+                                                                <MenuItem value="true">true</MenuItem>
+                                                                <MenuItem value="false">false</MenuItem>
+                                                            </Select>
+                                                            {paramErrors[idx] && (
+                                                                <FormHelperText>{paramErrors[idx]}</FormHelperText>
+                                                            )}
+                                                            <FormHelperText>Тип: {PARAM_TYPE_LABELS[param.type]}</FormHelperText>
+                                                        </FormControl>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <Box key={idx}>
+                                                        <TextField
+                                                            size="small"
+                                                            label={`${PARAM_TYPE_ICONS[param.type] || '📌'} ${param.name}`}
+                                                            value={editParams[idx] || ''}
+                                                            onChange={(e) => handleParamChange(idx, e.target.value)}
+                                                            fullWidth
+                                                            placeholder={`Введите значение для ${param.name}`}
+                                                            error={!!paramErrors[idx]}
+                                                            helperText={paramErrors[idx] || `Тип: ${PARAM_TYPE_LABELS[param.type] || param.type}`}
+                                                        />
+                                                    </Box>
+                                                );
+                                            })}
                                         </Stack>
                                     </Box>
                                 )}
@@ -376,6 +543,7 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
     );
 };
 
+// ---- ScenaryEditor - основной компонент ----
 export const ScenaryEditor = ({
                                   scenaryObject,
                                   onUpdate,

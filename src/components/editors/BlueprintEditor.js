@@ -1,6 +1,10 @@
 import React, { useState, useRef } from 'react';
-import {Card, CardHeader, CardContent, Stack, TextField, Divider, Typography, Box, Chip, IconButton, Button, Alert} from '@mui/material';
-import { Delete as DeleteIcon } from '@mui/icons-material';
+import {
+    Card, CardHeader, CardContent, Stack, TextField, Divider, Typography, Box, Chip, IconButton, Button, Alert,
+    MenuItem, Select, FormControl, InputLabel, FormHelperText, Tooltip
+} from '@mui/material';
+import { Delete as DeleteIcon, Help as HelpIcon } from '@mui/icons-material';
+import { PARAM_TYPES, PARAM_TYPE_LABELS, PARAM_TYPE_ICONS, createParameter } from '../common/Constants';
 
 export const BlueprintEditor = ({
                                     blueprint,
@@ -18,20 +22,21 @@ export const BlueprintEditor = ({
     const [methodDescription, setMethodDescription] = useState('');
     const [isAdding, setIsAdding] = useState(false);
 
+    // Состояния для добавления параметра
+    const [newParamName, setNewParamName] = useState('');
+    const [newParamType, setNewParamType] = useState(PARAM_TYPES.STRING);
+    const [currentMethodIndex, setCurrentMethodIndex] = useState(null);
+
     if (!blueprint) return null;
     const bp = blueprint;
 
     const handleAddMethod = () => {
-        // Защита от множественных вызовов
         if (isAdding) {
-            console.log('⛔ Уже добавляем, игнорируем');
             return;
         }
 
         const name = methodName.trim();
         const description = methodDescription.trim();
-
-        console.log('🖱️ handleAddMethod ВЫЗВАН, имя:', name);
 
         if (!name) {
             setError('Имя метода не может быть пустым');
@@ -41,10 +46,7 @@ export const BlueprintEditor = ({
         setIsAdding(true);
 
         try {
-            // ВЫЗЫВАЕМ ТОЛЬКО ОДИН РАЗ
-            console.log('📤 Вызываем onAddMethod...');
             const result = onAddMethod(name, description);
-            console.log('📤 Результат:', result);
 
             if (result && result.success === false) {
                 setError(result.error);
@@ -69,7 +71,6 @@ export const BlueprintEditor = ({
     };
 
     const handleAddField = () => {
-        // Аналогичная защита для полей
         const input = document.getElementById('new-field-input');
         const value = input?.value?.trim() || '';
 
@@ -87,6 +88,42 @@ export const BlueprintEditor = ({
         } catch (err) {
             setError(err.message || 'Ошибка при добавлении сообщения');
         }
+    };
+
+    const handleAddParameter = (methodIndex) => {
+        const name = newParamName.trim();
+        if (!name) {
+            setError('Имя параметра не может быть пустым');
+            return;
+        }
+
+        const currentMethod = bp.methods[methodIndex];
+        const newParam = createParameter(name, newParamType);
+        const newParams = [...currentMethod.parameters, newParam];
+        onUpdateMethodParameters(methodIndex, newParams);
+
+        setNewParamName('');
+        setNewParamType(PARAM_TYPES.STRING);
+        setCurrentMethodIndex(null);
+        setSuccess('Параметр успешно добавлен');
+        setTimeout(() => setSuccess(null), 2000);
+    };
+
+    const handleRemoveParameter = (methodIndex, paramIndex) => {
+        const currentMethod = bp.methods[methodIndex];
+        const newParams = currentMethod.parameters.filter((_, idx) => idx !== paramIndex);
+        onUpdateMethodParameters(methodIndex, newParams);
+    };
+
+    const handleParamTypeChange = (methodIndex, paramIndex, newType) => {
+        const currentMethod = bp.methods[methodIndex];
+        const newParams = currentMethod.parameters.map((param, idx) => {
+            if (idx === paramIndex) {
+                return { ...param, type: newType };
+            }
+            return param;
+        });
+        onUpdateMethodParameters(methodIndex, newParams);
     };
 
     return (
@@ -136,49 +173,85 @@ export const BlueprintEditor = ({
                                                 <DeleteIcon fontSize="small" />
                                             </IconButton>
                                         </Box>
+
                                         <Box>
                                             <Typography variant="caption" color="text.secondary">Параметры:</Typography>
                                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
                                                 {method.parameters.map((p, pi) => (
-                                                    <Chip key={pi} label={p} size="small" />
+                                                    <Chip
+                                                        key={pi}
+                                                        label={`${PARAM_TYPE_ICONS[p.type] || '📌'} ${p.name}: ${PARAM_TYPE_LABELS[p.type] || p.type}`}
+                                                        size="small"
+                                                        onDelete={() => handleRemoveParameter(idx, pi)}
+                                                        color="primary"
+                                                        variant="outlined"
+                                                    />
                                                 ))}
                                             </Box>
                                         </Box>
-                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+
+                                        {/* Добавление параметра */}
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
                                             <TextField
                                                 size="small"
-                                                placeholder="Новый параметр"
-                                                id={`param-input-${idx}`}
-                                                sx={{ flex: 1, minWidth: 120 }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        const input = e.target;
-                                                        const val = input.value.trim();
-                                                        if (val) {
-                                                            const newParams = [...method.parameters, val];
-                                                            onUpdateMethodParameters(idx, newParams);
-                                                            input.value = '';
-                                                        }
-                                                    }
+                                                placeholder="Имя параметра"
+                                                value={currentMethodIndex === idx ? newParamName : ''}
+                                                onChange={(e) => {
+                                                    setCurrentMethodIndex(idx);
+                                                    setNewParamName(e.target.value);
                                                 }}
+                                                onFocus={() => setCurrentMethodIndex(idx)}
+                                                sx={{ flex: 1, minWidth: 100 }}
                                             />
+                                            <FormControl size="small" sx={{ minWidth: 130 }}>
+                                                <Select
+                                                    value={currentMethodIndex === idx ? newParamType : PARAM_TYPES.STRING}
+                                                    onChange={(e) => {
+                                                        setCurrentMethodIndex(idx);
+                                                        setNewParamType(e.target.value);
+                                                    }}
+                                                    onFocus={() => setCurrentMethodIndex(idx)}
+                                                    displayEmpty
+                                                >
+                                                    {Object.entries(PARAM_TYPE_LABELS).map(([value, label]) => (
+                                                        <MenuItem key={value} value={value}>
+                                                            {PARAM_TYPE_ICONS[value]} {label}
+                                                        </MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
                                             <Button
                                                 variant="outlined"
                                                 size="small"
-                                                onClick={() => {
-                                                    const input = document.getElementById(`param-input-${idx}`);
-                                                    const val = input.value.trim();
-                                                    if (val) {
-                                                        const newParams = [...method.parameters, val];
-                                                        onUpdateMethodParameters(idx, newParams);
-                                                        input.value = '';
-                                                    }
-                                                }}
+                                                onClick={() => handleAddParameter(idx)}
                                             >
-                                                Добавить
+                                                Добавить параметр
                                             </Button>
                                         </Box>
+
+                                        {/* Изменение типов существующих параметров */}
+                                        {method.parameters.length > 0 && (
+                                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mt: 0.5 }}>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    Изменить тип:
+                                                </Typography>
+                                                {method.parameters.map((p, pi) => (
+                                                    <FormControl key={pi} size="small" sx={{ minWidth: 130 }}>
+                                                        <Select
+                                                            value={p.type || PARAM_TYPES.STRING}
+                                                            onChange={(e) => handleParamTypeChange(idx, pi, e.target.value)}
+                                                            size="small"
+                                                        >
+                                                            {Object.entries(PARAM_TYPE_LABELS).map(([value, label]) => (
+                                                                <MenuItem key={value} value={value}>
+                                                                    {PARAM_TYPE_ICONS[value]} {label}
+                                                                </MenuItem>
+                                                            ))}
+                                                        </Select>
+                                                    </FormControl>
+                                                ))}
+                                            </Box>
+                                        )}
                                     </Stack>
                                 </CardContent>
                             </Card>

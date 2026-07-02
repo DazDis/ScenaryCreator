@@ -34,8 +34,9 @@ import {
   Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import dagre from 'dagre'; // <-- импорт dagre
 
-// ---- Кастомный узел с handles ----
+// ---- Кастомный узел ----
 const StageNode = ({ data, selected, id }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(data.label || '');
@@ -86,12 +87,7 @@ const StageNode = ({ data, selected, id }) => {
       }}
       onDoubleClick={handleDoubleClick}
     >
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{ background: '#1976d2', width: 10, height: 10 }}
-      />
-
+      <Handle type="target" position={Position.Left} style={{ background: '#1976d2', width: 10, height: 10 }} />
       {isEditing ? (
         <TextField
           value={name}
@@ -108,13 +104,7 @@ const StageNode = ({ data, selected, id }) => {
           {name || 'Без названия'}
         </Typography>
       )}
-
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{ background: '#1976d2', width: 10, height: 10 }}
-      />
-
+      <Handle type="source" position={Position.Right} style={{ background: '#1976d2', width: 10, height: 10 }} />
       <Tooltip title="Удалить этап">
         <IconButton
           size="small"
@@ -146,6 +136,40 @@ const nodeTypes = {
   stage: StageNode,
 };
 
+// ---- Функция расчёта layout с помощью dagre ----
+const getLayoutedElements = (nodes, edges, direction = 'LR') => {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  dagreGraph.setGraph({ rankdir: direction, align: 'UL', ranksep: 50, nodesep: 30 });
+
+  // Добавляем узлы (задаём размеры)
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, { width: 150, height: 60 });
+  });
+
+  // Добавляем рёбра
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  // Выполняем расчёт
+  dagre.layout(dagreGraph);
+
+  // Обновляем позиции узлов
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    return {
+      ...node,
+      position: {
+        x: nodeWithPosition.x - 150 / 2,
+        y: nodeWithPosition.y - 60 / 2,
+      },
+    };
+  });
+
+  return layoutedNodes;
+};
+
 // ---- Главный компонент ----
 export const TreePage = ({
   scenaryObjects,
@@ -155,7 +179,7 @@ export const TreePage = ({
   updateScenaryObject,
   addListItem,
   removeListItem,
-  updateTransitionTasks, // <-- передаётся из App
+  updateTransitionTasks,
 }) => {
   const [edgeDialogOpen, setEdgeDialogOpen] = useState(false);
   const [edgeSource, setEdgeSource] = useState(null);
@@ -167,12 +191,12 @@ export const TreePage = ({
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // ---- Обновление графа при изменении данных ----
+  // ---- Обновление графа с расчётом layout ----
   useEffect(() => {
+    // Строим узлы без позиций
     const newNodes = scenaryObjects.map((obj, index) => ({
       id: `stage-${index}`,
       type: 'stage',
-      position: nodes.find(n => n.id === `stage-${index}`)?.position || { x: 150 + index * 220, y: 200 },
       data: {
         label: obj.Name || `Этап ${index + 1}`,
         onRename: (nodeId, newName) => {
@@ -202,9 +226,8 @@ export const TreePage = ({
         },
       },
     }));
-    setNodes(newNodes);
 
-    // Строим ребра из переходов
+    // Строим рёбра
     const newEdges = [];
     scenaryObjects.forEach((obj, sourceIndex) => {
       const tasks = obj['Transition Tasks'] || [];
@@ -232,10 +255,15 @@ export const TreePage = ({
         }
       });
     });
+
+    // Применяем layout
+    const layoutedNodes = getLayoutedElements(newNodes, newEdges, 'LR');
+
+    setNodes(layoutedNodes);
     setEdges(newEdges);
   }, [scenaryObjects, updateScenaryObject, deleteScenaryObject, updateTransitionTasks, setNodes, setEdges]);
 
-  // ---- Обработчик соединения (перетаскивание) ----
+  // ---- Обработчик соединения ----
   const onConnect = useCallback(
     (params) => {
       const sourceNode = nodes.find(n => n.id === params.source);
@@ -263,7 +291,7 @@ export const TreePage = ({
     [nodes, scenaryObjects]
   );
 
-  // ---- Исправленная функция добавления перехода ----
+  // ---- Добавление перехода ----
   const handleEdgeDialogAdd = () => {
     if (!selectedBlueprint || !selectedField) {
       setSnackbar({ open: true, message: 'Выберите сценарный объект и сообщение', severity: 'warning' });
@@ -279,17 +307,11 @@ export const TreePage = ({
       return;
     }
     const newTask = `${selectedBlueprint}.${selectedField}.${targetStageName}`;
-
-    // Используем updateTransitionTasks вместо addListItem
     const currentTasks = scenaryObjects[edgeSource]['Transition Tasks'] || [];
     const newTasks = [...currentTasks, newTask];
     if (updateTransitionTasks) {
       updateTransitionTasks(edgeSource, newTasks);
-    } else {
-      // fallback (на случай, если пропс не передан)
-      addListItem(edgeSource, 'Transition Tasks', newTask);
     }
-
     setEdgeDialogOpen(false);
     setSelectedBlueprint('');
     setSelectedField('');
@@ -298,6 +320,7 @@ export const TreePage = ({
     setSnackbar({ open: true, message: 'Переход добавлен', severity: 'success' });
   };
 
+  // ---- Удаление перехода ----
   const onEdgeClick = useCallback(
     (event, edge) => {
       if (window.confirm('Удалить этот переход?')) {
@@ -306,16 +329,16 @@ export const TreePage = ({
           const taskToRemove = edge.data?.task;
           if (taskToRemove) {
             const tasks = scenaryObjects[sourceIndex]['Transition Tasks'] || [];
-            const idx = tasks.indexOf(taskToRemove);
-            if (idx !== -1) {
-              removeListItem(sourceIndex, 'Transition Tasks', idx);
+            const filtered = tasks.filter(task => task !== taskToRemove);
+            if (filtered.length !== tasks.length && updateTransitionTasks) {
+              updateTransitionTasks(sourceIndex, filtered);
               setSnackbar({ open: true, message: 'Переход удалён', severity: 'info' });
             }
           }
         }
       }
     },
-    [scenaryObjects, removeListItem]
+    [scenaryObjects, updateTransitionTasks]
   );
 
   const handleAddStage = () => {
@@ -345,7 +368,6 @@ export const TreePage = ({
         </Panel>
       </ReactFlow>
 
-      {/* Диалог создания перехода */}
       <Dialog open={edgeDialogOpen} onClose={() => setEdgeDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Создать переход</DialogTitle>
         <DialogContent>
