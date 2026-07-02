@@ -180,7 +180,7 @@ export const BlueprintEditor = ({
                                                 {method.parameters.map((p, pi) => (
                                                     <Chip
                                                         key={pi}
-                                                        label={`${PARAM_TYPE_ICONS[p.type] || '📌'} ${p.name}: ${PARAM_TYPE_LABELS[p.type] || p.type}`}
+                                                        label={`${PARAM_TYPE_LABELS[p.type] || '📌'} ${p.name}: ${PARAM_TYPE_LABELS[p.type] || p.type}`}
                                                         size="small"
                                                         onDelete={() => handleRemoveParameter(idx, pi)}
                                                         color="primary"

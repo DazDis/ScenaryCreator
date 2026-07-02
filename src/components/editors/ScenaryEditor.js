@@ -20,9 +20,9 @@ import { PARAM_TYPE_LABELS, PARAM_TYPE_ICONS } from '../common/Constants';
 const formatTransitionDisplay = (item) => {
     const parts = item.split('.');
     if (parts.length === 3) {
-        return `${parts[0]} => "${parts[1]}"; => '${parts[2]}'`;
+        return `По сообщению (${parts[0]} => "${parts[1]}";) Переход на '${parts[2]}'`;
     } else if (parts.length === 2) {
-        return `${parts[0]} => "${parts[1]}";`;
+        return `Принимает сообщение (${parts[0]} => "${parts[1]}";)`;
     } else {
         return item;
     }
@@ -43,7 +43,7 @@ const formatMethodDisplay = (item) => {
 };
 
 // ---- MethodList компонент - для отображения списков методов и переходов ----
-const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListItem, blueprints, stages }) => {
+const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListItem, blueprints, stages, helpText }) => {
     const [editIndex, setEditIndex] = useState(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(true);
@@ -282,9 +282,18 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
                 }}
                 onClick={() => setIsExpanded(!isExpanded)}
             >
-                <Typography variant="subtitle1" fontWeight="bold">
-                    {title} ({items.length})
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                        {title} ({items.length})
+                    </Typography>
+                    {helpText && (
+                        <Tooltip title={helpText} placement="top" arrow enterDelay={300}>
+                            <IconButton size="small" sx={{ color: 'text.secondary' }}>
+                                <HelpIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </Box>
                 <IconButton size="small">
                     {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                 </IconButton>
@@ -492,11 +501,11 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
                                                 if (param.type === 'Boolean') {
                                                     return (
                                                         <FormControl key={idx} fullWidth size="small" error={!!paramErrors[idx]}>
-                                                            <InputLabel>{`${PARAM_TYPE_ICONS[param.type] || '📌'} ${param.name}`}</InputLabel>
+                                                            <InputLabel>{` ${param.name}`}</InputLabel>
                                                             <Select
                                                                 value={editParams[idx] || ''}
                                                                 onChange={(e) => handleParamChange(idx, e.target.value)}
-                                                                label={`${PARAM_TYPE_ICONS[param.type] || '📌'} ${param.name}`}
+                                                                label={` ${param.name}`}
                                                             >
                                                                 <MenuItem value="">Выберите значение</MenuItem>
                                                                 <MenuItem value="true">true</MenuItem>
@@ -514,13 +523,13 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
                                                     <Box key={idx}>
                                                         <TextField
                                                             size="small"
-                                                            label={`${PARAM_TYPE_ICONS[param.type] || '📌'} ${param.name}`}
+                                                            label={`${PARAM_TYPE_LABELS[param.type]}: ${param.name}`}
                                                             value={editParams[idx] || ''}
                                                             onChange={(e) => handleParamChange(idx, e.target.value)}
                                                             fullWidth
                                                             placeholder={`Введите значение для ${param.name}`}
                                                             error={!!paramErrors[idx]}
-                                                            helperText={paramErrors[idx] || `Тип: ${PARAM_TYPE_LABELS[param.type] || param.type}`}
+                                                            
                                                         />
                                                     </Box>
                                                 );
@@ -542,7 +551,11 @@ const MethodList = ({ items, onRemove, title, children, listKey, onUpdateListIte
         </Paper>
     );
 };
-
+    const sectionDescriptions = {
+    start: 'Методы, которые выполняются при входе в данный этап сценария.',
+    end: 'Методы, которые выполняются при выходе из данного этапа сценария.',
+    transition: 'Переходы на другие этапы сценария, которые выполняются при завершении текущего этапа.'
+    };
 // ---- ScenaryEditor - основной компонент ----
 export const ScenaryEditor = ({
                                   scenaryObject,
@@ -612,6 +625,7 @@ export const ScenaryEditor = ({
                         items={obj['Actions on Start'] || []}
                         onRemove={(idx) => onRemoveListItem('Actions on Start', idx)}
                         title="Действия при старте этапа"
+                        helpText={sectionDescriptions.start}
                         listKey="Actions on Start"
                         onUpdateListItem={onUpdateListItem}
                         blueprints={blueprints}
@@ -629,6 +643,7 @@ export const ScenaryEditor = ({
                         items={obj['Actions on End'] || []}
                         onRemove={(idx) => onRemoveListItem('Actions on End', idx)}
                         title="Действия при завершении этапа"
+                        helpText={sectionDescriptions.end}
                         listKey="Actions on End"
                         onUpdateListItem={onUpdateListItem}
                         blueprints={blueprints}
@@ -646,6 +661,7 @@ export const ScenaryEditor = ({
                         items={obj['Transition Tasks'] || []}
                         onRemove={(idx) => onRemoveListItem('Transition Tasks', idx)}
                         title="Переходы между этапами"
+                        helpText={sectionDescriptions.transition}
                         listKey="Transition Tasks"
                         onUpdateListItem={onUpdateListItem}
                         blueprints={blueprints}

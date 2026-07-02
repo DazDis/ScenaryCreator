@@ -33,7 +33,7 @@ const validateValue = (value, type) => {
     }
 };
 
-// Компонент для ввода параметра - компактная версия
+// Компонент для ввода параметра
 const ParamInput = ({
                         param,
                         value,
@@ -74,7 +74,6 @@ const ParamInput = ({
         }
     };
 
-    // Для Boolean - компактный Select
     if (param.type === 'Boolean') {
         return (
             <FormControl size="small" sx={{ minWidth: 120 }} error={!!(error || localError)}>
@@ -113,13 +112,7 @@ const ParamInput = ({
             sx={{ minWidth: 120 }}
             error={!!(error || localError)}
             helperText={error || localError || ''}
-            InputProps={{
-                startAdornment: (
-                    <Typography variant="caption" sx={{ mr: 0.5, color: 'text.secondary', fontSize: '10px' }}>
-                        {PARAM_TYPE_ICONS[param.type]}
-                    </Typography>
-                )
-            }}
+            
         />
     );
 };
@@ -286,9 +279,8 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
                 </Box>
 
                 <Stack spacing={1}>
-                    {/* Выбор объекта и метода в одну строку */}
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <Box sx={{ flex: 1 }}>
+                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <Autocomplete
                                 size="small"
                                 options={blueprints}
@@ -304,9 +296,16 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
                                     />
                                 )}
                                 isOptionEqualToValue={(option, value) => option.name === value?.name}
+                                sx={{ flex: 1 }}
                             />
+                            <Tooltip title={fieldDescriptions.blueprint} placement="top" arrow enterDelay={300}>
+                                <IconButton size="small" sx={{ color: 'text.secondary' }}>
+                                    <HelpIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
                         </Box>
-                        <Box sx={{ flex: 1 }}>
+
+                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <Autocomplete
                                 size="small"
                                 options={methods}
@@ -323,19 +322,43 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
                                     />
                                 )}
                                 isOptionEqualToValue={(option, value) => option.name === value?.name}
+                                sx={{ flex: 1 }}
                             />
+                            <Tooltip title={fieldDescriptions.method} placement="top" arrow enterDelay={300}>
+                                <IconButton size="small" sx={{ color: 'text.secondary' }}>
+                                    <HelpIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
                         </Box>
                     </Box>
 
-                    {/* Параметры в компактном виде */}
                     {parameters.length > 0 && (
                         <Paper variant="outlined" sx={{ p: 1, bgcolor: 'background.default' }}>
                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
                                 <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5, fontWeight: 'bold' }}>
                                     Параметры:
                                 </Typography>
+                                <Tooltip title={fieldDescriptions.parameters} placement="top" arrow enterDelay={300}>
+                                    <IconButton size="small" sx={{ color: 'text.secondary', fontSize: 14 }}>
+                                        <HelpIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
                                 {parameters.map((param, idx) => (
                                     <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Chip
+                                            label={PARAM_TYPE_LABELS[param.type] || param.type}
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{
+                                                height: 20,
+                                                fontSize: '0.6rem',
+                                                fontWeight: 'bold',
+                                                mr: 0.5,
+                                                borderColor: 'primary.light',
+                                                color: 'white',
+                                                bgcolor: 'primary.light'
+                                            }}
+                                        />
                                         <ParamInput
                                             param={param}
                                             value={paramValues[idx] || ''}
@@ -361,16 +384,17 @@ export const MethodPicker = ({ items, onAddItem, onRemoveItem, blueprints }) => 
                         </Paper>
                     )}
 
-                    {/* Кнопка добавления */}
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <Button
-                            variant="contained"
-                            size="small"
-                            onClick={handleAdd}
-                            startIcon={<AddIcon />}
-                        >
-                            Добавить метод
-                        </Button>
+                        <Tooltip title={fieldDescriptions.addButton} placement="top" arrow enterDelay={300}>
+                            <Button
+                                variant="contained"
+                                size="small"
+                                onClick={handleAdd}
+                                startIcon={<AddIcon />}
+                            >
+                                Добавить метод
+                            </Button>
+                        </Tooltip>
                     </Box>
                 </Stack>
             </Stack>
